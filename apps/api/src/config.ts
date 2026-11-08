@@ -50,4 +50,17 @@ export const config = {
   setupToken: process.env.SETUP_TOKEN ?? '',
   sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   outboxWorker: process.env.OUTBOX_WORKER !== 'false',
+  // Avisos push (Web Push). Sin claves VAPID, los avisos solo llegan a la bandeja y por email.
+  // Genera las claves con: npx web-push generate-vapid-keys
+  push: {
+    publicKey: process.env.VAPID_PUBLIC_KEY ?? '',
+    privateKey: (process.env.VAPID_PRIVATE_KEY ?? '').replace(/^-$/, ''), // «-»: sin configurar (Azure)
+    subject: process.env.VAPID_SUBJECT || 'mailto:admin@openhr.local',
+    // Servicios de push a los que se permite enviar (sufijos de dominio). Evita que una
+    // suscripción manipulada haga que el servidor llame a direcciones internas.
+    allowedHosts: (process.env.PUSH_ALLOWED_HOSTS ?? 'fcm.googleapis.com,push.services.mozilla.com,notify.windows.com,push.apple.com')
+      .split(',')
+      .map((h) => h.trim().toLowerCase())
+      .filter(Boolean),
+  },
 };

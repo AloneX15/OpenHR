@@ -329,6 +329,10 @@ resource "azurerm_container_app" "api" {
     name  = "smtp-password"
     value = var.smtp_password == "" ? "-" : var.smtp_password
   }
+  secret {
+    name  = "vapid-private-key"
+    value = var.vapid_private_key == "" ? "-" : var.vapid_private_key
+  }
 
   # Solo accesible desde dentro del entorno (la web le reenvía /api).
   ingress {
@@ -419,6 +423,18 @@ resource "azurerm_container_app" "api" {
       env {
         name  = "SMTP_FROM"
         value = var.smtp_from
+      }
+      env {
+        name  = "VAPID_PUBLIC_KEY"
+        value = var.vapid_public_key
+      }
+      env {
+        name        = "VAPID_PRIVATE_KEY"
+        secret_name = "vapid-private-key"
+      }
+      env {
+        name  = "VAPID_SUBJECT"
+        value = var.vapid_subject
       }
       env {
         name  = "TZ"

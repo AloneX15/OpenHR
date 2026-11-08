@@ -45,6 +45,10 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 ### Datos salariales
 - La retribución y el sexo solo los ve RR. HH. de la sociedad (el sexo, también la propia persona); el responsable no. La auditoría registra que hubo un cambio y quién lo hizo, sin los importes.
 
+### Avisos push
+- El servidor solo envía a servicios de push conocidos (Chrome, Firefox, Edge, Safari; configurable con `PUSH_ALLOWED_HOSTS`), por https y sin puertos raros: una suscripción manipulada no puede hacer que llame a direcciones internas.
+- El contenido va cifrado de extremo a extremo (Web Push con VAPID). Al enviarse, el outbox borra el texto y las claves de la suscripción. El service worker solo abre rutas de la propia web.
+
 ### Gastos
 - El justificante solo lo ven la persona, su responsable directo y RR. HH. de la sociedad; cada consulta ajena queda en la auditoría. Se aceptan solo imágenes y PDF de hasta 10 MB, y se sirven con `nosniff`. Nadie puede aprobar sus propios gastos.
 

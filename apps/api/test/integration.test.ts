@@ -1151,3 +1151,54 @@ describe('gastos', () => {
     await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', mileage).field('date', '2999-01-01').field('description', 'Futuro').field('km', '5').expect(400);
   });
 });
+
+describe('avisos push', () => {
+  const endpoint = 'https://fcm.googleapis.com/fcm/send/prueba-luis';
+  const keys = { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' };
+
+  it('cada persona suscribe sus navegadores; no se admiten servicios desconocidos', async () => {
+    const info = (await luis.get('/api/notifications/push').expect(200)).body;
+    expect(info).toMatchObject({ enabled: true, devices: [] });
+    expect(info.publicKey).toMatch(/^B/);
+    await luis.post('/api/notifications/push/subscriptions').send({ endpoint: 'https://169.254.169.254/latest', keys }).expect(400);
+    await luis.post('/api/notifications/push/subscriptions').send({ endpoint, keys }).expect(201);
+    await luis.post('/api/notifications/push/subscriptions').send({ endpoint, keys }).expect(201); // repetir no duplica
+    expect((await luis.get('/api/notifications/push')).body.devices).toHaveLength(1);
+    expect((await marta.get('/api/notifications/push')).body.devices).toHaveLength(0);
+  });
+
+  it('cada aviso se encola como push y el servicio recibe un mensaje cifrado; si ya no existe, se borra', async () => {
+    await owner.query(`DELETE FROM outbox WHERE type = 'push'`);
+    const cats = (await luis.get('/api/expenses/categories')).body;
+    const km = cats.find((c: any) => c.kind === 'mileage').id;
+    // Luis envía un gasto y recibe el aviso cuando Marta se lo rechaza.
+    const x = (await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', km).field('date', yesterday).field('description', 'Push').field('km', '3').expect(201)).body;
+    await marta.post(`/api/expenses/${x.id}/decision`).send({ approve: false, comment: 'Prueba de aviso' }).expect(201);
+    const jobs = await owner.query(`SELECT id, tenant_id, payload FROM outbox WHERE type = 'push'`);
+    expect(jobs.rows).toHaveLength(1);
+    expect(jobs.rows[0].payload).toMatchObject({ endpoint, title: 'Gasto rechazado', link: '/gastos' });
+
+    const webpush = (await import('web-push')).default as any;
+    const { OutboxWorker } = await import('../src/notifications/outbox.worker');
+    const worker = app.get(OutboxWorker);
+    const sent: any[] = [];
+    const original = webpush.sendNotification;
+    webpush.sendNotification = async (sub: any, payload: string, opts: any) => {
+      sent.push({ sub, payload, opts });
+      return { statusCode: 201 };
+    };
+    try {
+      await worker.handle('push', jobs.rows[0].payload, jobs.rows[0].tenant_id);
+      expect(sent[0].sub.endpoint).toBe(endpoint);
+      expect(JSON.parse(sent[0].payload)).toMatchObject({ title: 'Gasto rechazado' });
+      expect(sent[0].opts.vapidDetails.publicKey).toMatch(/^B/);
+      webpush.sendNotification = async () => {
+        throw Object.assign(new Error('Gone'), { statusCode: 410 });
+      };
+      await worker.handle('push', jobs.rows[0].payload, jobs.rows[0].tenant_id);
+    } finally {
+      webpush.sendNotification = original;
+    }
+    expect((await luis.get('/api/notifications/push')).body.devices).toHaveLength(0);
+  });
+});

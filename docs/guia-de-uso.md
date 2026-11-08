@@ -30,7 +30,7 @@
 
 **Canal de denuncias.** Si la empresa lo ha activado, tiene un enlace propio (pídelo a RR. HH.). Puedes comunicar irregularidades de forma anónima y seguirlas con el código que te damos.
 
-**Tu cuenta.** En **Mi cuenta** (tu nombre, abajo a la izquierda) cambias la contraseña, activas la verificación en dos pasos y eliges el tema: Claro, Oscuro o Sistema.
+**Tu cuenta.** En **Mi cuenta** (tu nombre, abajo a la izquierda) cambias la contraseña, activas la verificación en dos pasos y eliges el tema: Claro, Oscuro o Sistema. En **Avisos en este dispositivo** puedes recibir los avisos como notificaciones del móvil o del ordenador (en iPhone, primero añade OpenHR a la pantalla de inicio).
 
 ## Responsables de equipo
 

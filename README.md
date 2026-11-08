@@ -63,7 +63,7 @@ Para producción: pon OpenHR detrás de un proxy HTTPS (Caddy, Traefik, nginx), 
 ```bash
 npm install
 docker compose -f docker-compose.test.yml up -d   # PostgreSQL de pruebas en el puerto 5434
-npm test                                          # 92 tests: unitarios + integración contra PostgreSQL
+npm test                                          # 96 tests: unitarios + integración contra PostgreSQL
 ```
 
 Para trabajar en local con recarga en caliente, arranca solo la base de datos (`docker compose up -d db`), aplica migraciones (`MIGRATION_DATABASE_URL=... npm run db:migrate` tras `npm run build -w apps/api`) y lanza `npm run dev:api` y `npm run dev:web` con las variables de `.env.example`.
@@ -80,7 +80,7 @@ docs/adr      Decisiones de arquitectura
 
 Criterio de salida: el grupo piloto ficha y pide vacaciones durante un mes completo y la gestoría cierra una nómina con la exportación de OpenHR.
 
-V1.1 en curso: inicio de sesión con Microsoft 365, kiosco de fichaje, geolocalización, fichaje sin conexión y gastos hechos. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación, checklists de alta, baja y traspaso, campos personalizados, anuncios, políticas, firma individual, registro retributivo, RGPD, canal de denuncias, almacenamiento S3/Azure Blob, despliegue en Azure con Terraform y migración desde Factorial por API. Para la V1.1: kiosco, geolocalización y el resto.
+V1.1 en curso: inicio de sesión con Microsoft 365, kiosco de fichaje, geolocalización, fichaje sin conexión, gastos y avisos push hechos. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación, checklists de alta, baja y traspaso, campos personalizados, anuncios, políticas, firma individual, registro retributivo, RGPD, canal de denuncias, almacenamiento S3/Azure Blob, despliegue en Azure con Terraform y migración desde Factorial por API. Para la V1.1: kiosco, geolocalización y el resto.
 
 ## Trabajo con agentes de IA
 

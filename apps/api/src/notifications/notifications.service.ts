@@ -11,6 +11,21 @@ export interface NotifyInput {
   email?: boolean;
 }
 
+export const pushEnabled = () => Boolean(config.push.publicKey && config.push.privateKey);
+
+/** ¿Es la dirección de un servicio de push permitido? Solo https y dominios de la lista. */
+export function allowedPushEndpoint(endpoint: string, hosts = config.push.allowedHosts): boolean {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.port || url.username) return false;
+  const host = url.hostname.toLowerCase();
+  return hosts.some((h) => host === h || host.endsWith('.' + h));
+}
+
 @Injectable()
 export class NotificationsService {
   /**
@@ -24,6 +39,18 @@ export class NotificationsService {
         `INSERT INTO notification (tenant_id, user_id, type, title, body, link) VALUES ($1, $2, $3, $4, $5, $6)`,
         [tx.tenantId, userId, n.type, n.title, n.body ?? null, n.link ?? null],
       );
+      if (pushEnabled()) {
+        const subs = await tx.query<{ id: string; endpoint: string; p256dh: string; auth: string }>(
+          'SELECT id, endpoint, p256dh, auth FROM push_subscription WHERE user_id = $1',
+          [userId],
+        );
+        for (const s of subs) {
+          await tx.query(`INSERT INTO outbox (tenant_id, type, payload) VALUES ($1, 'push', $2)`, [
+            tx.tenantId,
+            JSON.stringify({ subscriptionId: s.id, endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth }, title: n.title, body: n.body ?? '', link: n.link ?? '/' }),
+          ]);
+        }
+      }
       if (n.email !== false) {
         const u = await tx.maybeOne<{ email: string; is_active: boolean }>(
           'SELECT email, is_active FROM app_user WHERE id = $1',

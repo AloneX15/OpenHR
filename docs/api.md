@@ -45,6 +45,16 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `GET /notifications` | S | Últimas 50 notificaciones |
 | `POST /notifications/:id/read`, `POST /notifications/read-all` | S | Marcar como leídas |
 
+## Avisos push
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /notifications/push` | Todos | `{ enabled, publicKey, devices }`: si el servidor tiene claves VAPID y mis dispositivos suscritos |
+| `POST /notifications/push/subscriptions` | Todos | La suscripción del navegador (`{ endpoint, keys: { p256dh, auth } }`). Solo servicios de push conocidos |
+| `DELETE /notifications/push/subscriptions` | Todos | `{ endpoint? }`: quita ese navegador (o todos los míos) |
+
+Cada aviso de la bandeja se envía también a los dispositivos suscritos a través del outbox. Si el servicio responde 404 o 410, la suscripción se borra.
+
 ## Organización (`/org`)
 
 | Método y ruta | Quién | Descripción |

@@ -3,6 +3,7 @@
 import QRCode from 'qrcode';
 import { FormEvent, useEffect, useState } from 'react';
 import { KioskCredentials } from '@/components/Kiosk';
+import { PushSettings } from '@/components/PushSettings';
 import { ThemeSwitch } from '@/components/ThemeSwitch';
 import { Card, ErrorBox, Field, Notice, PageHeader, useAction } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -16,6 +17,7 @@ export default function AccountPage() {
       <div className="grid grid-2">
         <PasswordCard />
         <MfaCard enabled={me.mfaEnabled} onChange={reload} />
+        <PushSettings />
         {me.employments.length > 0 && <KioskCredentials />}
         <Card title="Apariencia">
           <p className="muted">Elige el tema de color. «Sistema» sigue la configuración de tu dispositivo.</p>

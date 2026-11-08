@@ -310,6 +310,9 @@ Canal interno de información (Ley 2/2023). Asunto, descripción, contacto, reso
 #### `notification`
 Bandeja de cada usuario: `type`, `title`, `body`, `link`, `read_at`.
 
+#### `push_subscription`
+Un navegador o dispositivo con avisos push activados: `user_id`, `endpoint` (único por organización), claves `p256dh` y `auth`, `user_agent` y `last_used_at`.
+
 #### `outbox`
 Cola transaccional de emails: `type`, `payload`, `attempts`, `last_error`, `available_at`, `processed_at`. Al enviarse, el cuerpo se borra y solo quedan destinatario y asunto.
 
@@ -349,6 +352,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `014_oidc.sql` | Proveedor OpenID Connect por organización (`oidc_provider`, secreto cifrado) y `oidc_provider_by_domain()` |
 | `015_kiosk_geo_offline.sql` | Kioscos, PIN y código de kiosco, zona de fichaje por centro, teletrabajo permitido y contexto del fichaje (canal, kiosco, posición) |
 | `016_expenses.sql` | Categorías de gasto (con las de partida para cada grupo) y gastos con justificante y aprobación |
+| `017_web_push.sql` | Suscripciones push por navegador y redacción del outbox también para los push enviados |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

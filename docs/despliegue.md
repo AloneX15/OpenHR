@@ -48,6 +48,8 @@ Abre `PUBLIC_URL` (por defecto <http://localhost:3000>), completa la **configura
 | `SECURE_COOKIES` | No | `true`/`false`. Por defecto, `true` si `PUBLIC_URL` es HTTPS |
 | `SESSION_HOURS` | No (12) | Duración de la sesión |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | En producción | Servidor de correo. Por defecto, Mailpit |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | No | Avisos push en el navegador. Genera las claves una vez con `npx web-push generate-vapid-keys` y no las cambies (las suscripciones dependen de ellas). Sin ellas, los avisos llegan solo a la bandeja y por email |
+| `PUSH_ALLOWED_HOSTS` | No | Servicios de push permitidos (sufijos de dominio separados por comas). Por defecto, los de Chrome, Firefox, Edge y Safari |
 | `OUTBOX_WORKER` | No (`true`) | Procesar en la API el envío de emails y la conservación diaria |
 | `STORAGE_DRIVER` | No (`local`) | Dónde guardar los ficheros: `local` (volumen), `s3` o `azure` |
 | `STORAGE_DIR` | No | Carpeta para `local` |

@@ -18,6 +18,9 @@ export default defineConfig({
       OUTBOX_WORKER: 'false',
       STORAGE_DIR: './.test-storage',
       PUBLIC_URL: 'http://localhost:3000',
+      // Claves VAPID solo para los tests.
+      VAPID_PUBLIC_KEY: 'BMivgr7ioWu1ZvY0BfSahhHb3jHzQwBm9Sybfou5-A37eIWQ00nVUWPznU8fI5YGILbcockGwYPMFhMDm1XNScM',
+      VAPID_PRIVATE_KEY: 'aoRTYXKt_gnQNsayeo0OxsmX4oMamn28ei_98BDThtI',
     },
     hookTimeout: 60000,
   },

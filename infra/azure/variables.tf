@@ -110,3 +110,20 @@ variable "tags" {
   type    = map(string)
   default = { app = "openhr" }
 }
+
+# Avisos push (opcional): npx web-push generate-vapid-keys
+variable "vapid_public_key" {
+  type    = string
+  default = ""
+}
+
+variable "vapid_private_key" {
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "vapid_subject" {
+  type    = string
+  default = "mailto:admin@example.com"
+}

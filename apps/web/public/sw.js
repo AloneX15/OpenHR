@@ -1,7 +1,7 @@
 // Service worker de OpenHR: permite abrir la aplicación sin conexión para fichar
 // (los fichajes se guardan en el dispositivo y se envían al volver la conexión).
 // Nunca guarda respuestas de /api: los datos siempre vienen del servidor.
-const CACHE = 'openhr-v1';
+const CACHE = 'openhr-v2';
 const SHELL = ['/', '/horario', '/login', '/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
@@ -62,7 +62,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const link = (event.notification.data && event.notification.data.link) || '/';
+  const raw = event.notification.data && event.notification.data.link;
+  // Solo rutas de esta misma web.
+  const link = typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {
