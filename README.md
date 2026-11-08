@@ -1,0 +1,71 @@
+# OpenHR
+
+Gestión de personas **open source y autoalojable**, pensada para grupos de empresas en España: varias sociedades con un mismo equipo de RR. HH., registro de jornada conforme al art. 34.9 del Estatuto de los Trabajadores y reparto de nóminas de la gestoría.
+
+> Estado: **MVP piloto** (v0.1). Pensado para un primer grupo piloto antes de la V1 comercial. Ver [el alcance](#alcance-del-mvp-piloto).
+
+## Qué incluye
+
+| Módulo | Lo que hace |
+| --- | --- |
+| **Organización** | Varias sociedades (CIF, CCC), centros de trabajo con zona horaria, departamentos, festivos nacionales/autonómicos/locales, tipos de ausencia del ET editables. Una persona puede tener relaciones laborales en varias sociedades del grupo. |
+| **Personas** | Alta individual o importación CSV (con validación previa y atómica), responsable directo, jornada teórica por día, invitación por email, baja. |
+| **Control horario** | Fichaje web (entrada, pausa, salida) con la hora del servidor, idempotente. Fichajes **inmutables**: una corrección es un evento nuevo con motivo y autoría. Cadena de hashes por relación laboral, verificación de integridad y **sellos** enviados por email. Turnos que cruzan medianoche y cambios de hora resueltos por zona horaria del centro. |
+| **Ausencias** | Vacaciones con saldo prorrateado y ajustes, permisos del ET, bajas médicas. Aprobación de un nivel (responsable o RR. HH.). Los motivos de salud no los ve el responsable. |
+| **Nóminas** | Se sube el PDF de la gestoría; OpenHR detecta el DNI/NIE de cada página y propone a quién va. **Nada se publica sin revisión humana página a página.** Cada persona descarga la suya en «Mis documentos», con acuse de lectura. |
+| **Informes** | Registro de jornada en CSV (por sociedad o por persona) y variables de nómina mensuales para la gestoría. Cada exportación queda auditada con su huella SHA-256. |
+| **Seguridad** | Aislamiento entre organizaciones con Row Level Security de PostgreSQL, rol de base de datos sin privilegios, verificación en dos pasos (TOTP), auditoría de acciones, cookies `HttpOnly` + `SameSite`, comprobación de origen. |
+
+## Puesta en marcha con Docker Compose
+
+Requisitos: Docker con Compose v2.
+
+```bash
+git clone https://github.com/AloneX15/OpenHR.git
+cd OpenHR
+cp .env.example .env
+# Edita .env: cambia TODAS las contraseñas y secretos (openssl rand -hex 32)
+docker compose up -d --build
+```
+
+Abre <http://localhost:3000>: la primera vez verás la **configuración inicial**, donde se crea la organización, la primera sociedad y tu cuenta de administración. Los correos (invitaciones, avisos) se capturan en Mailpit, en <http://localhost:8025>, hasta que configures un SMTP real en `.env`.
+
+Servicios:
+
+| Servicio | Qué es |
+| --- | --- |
+| `db` | PostgreSQL 17 (volumen `db-data`). Expuesto solo en `127.0.0.1:5433`. |
+| `migrate` | Aplica las migraciones con el rol propietario y termina. |
+| `api` | API NestJS (`/api`), conectada con el rol `openhr_app`, sujeto a RLS. Ficheros en el volumen `storage`. |
+| `web` | Next.js en el puerto 3000; reenvía `/api/*` a la API (mismo origen). |
+| `mailpit` | SMTP de pruebas. Quítalo en producción. |
+
+Para producción: pon OpenHR detrás de un proxy HTTPS (Caddy, Traefik, nginx), ajusta `PUBLIC_URL` a la URL pública exacta (las peticiones de otro origen se rechazan) y `SECURE_COOKIES=true`. Haz copia de seguridad de los volúmenes `db-data` y `storage`.
+
+## Desarrollo
+
+```bash
+npm install
+docker compose -f docker-compose.test.yml up -d   # PostgreSQL de pruebas en el puerto 5434
+npm test                                          # 43 tests: unitarios + integración contra PostgreSQL
+```
+
+Para trabajar en local con recarga en caliente, arranca solo la base de datos (`docker compose up -d db`), aplica migraciones (`MIGRATION_DATABASE_URL=... npm run db:migrate` tras `npm run build -w apps/api`) y lanza `npm run dev:api` y `npm run dev:web` con las variables de `.env.example`.
+
+Estructura:
+
+```
+apps/api      API NestJS + PostgreSQL (SQL directo con pg, migraciones en apps/api/migrations)
+apps/web      Interfaz Next.js (App Router)
+docs/adr      Decisiones de arquitectura
+```
+
+## Alcance del MVP piloto
+
+Criterio de salida: el grupo piloto ficha y pide vacaciones durante un mes completo y la gestoría cierra una nómina con la exportación de OpenHR.
+
+Fuera del MVP (V1 comercial y siguientes): turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel, firma electrónica, registro retributivo, canal de denuncias, solicitudes RGPD y purga por retención, OIDC/Microsoft Entra, kiosco, geolocalización, almacenamiento S3/Azure, despliegue en la nube y migración desde Factorial por API.
+
+## Licencia
+
+Pendiente de decidir (AGPL-3.0 o Apache-2.0).

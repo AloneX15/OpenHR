@@ -8,3 +8,4 @@ storage/
 coverage/
 .DS_Store
 .test-storage/
+next-env.d.ts

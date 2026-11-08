@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.next
+**/.test-storage
+**/storage
+.git
+.env
+*.md
+!README.md

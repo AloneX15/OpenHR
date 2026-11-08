@@ -7,7 +7,6 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "migrate": "node dist/db/migrate.js",
-    "seed": "node dist/db/seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"

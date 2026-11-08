@@ -222,10 +222,10 @@ export class AuthService {
         `INSERT INTO company (tenant_id, name, legal_name, tax_id) VALUES ($1, $2, $2, $3) RETURNING id`,
         [tenantId, input.companyName, input.companyTaxId.toUpperCase()],
       );
-      await tx.query(`INSERT INTO work_center (tenant_id, company_id, name) VALUES ($1, $2, 'Sede central')`, [
-        tenantId,
-        company.id,
-      ]);
+      const center = await tx.one(
+        `INSERT INTO work_center (tenant_id, company_id, name) VALUES ($1, $2, 'Sede central') RETURNING id`,
+        [tenantId, company.id],
+      );
       const person = await tx.one(
         `INSERT INTO person (tenant_id, first_name, last_name, email) VALUES ($1, $2, $3, $4) RETURNING id`,
         [tenantId, input.firstName, input.lastName, input.email],
@@ -238,6 +238,12 @@ export class AuthService {
         tenantId,
         user.id,
       ]);
+      // Quien configura suele trabajar también en el grupo: se le da de alta para que pueda
+      // fichar y pedir ausencias. Si no es así, RR. HH. puede darle de baja.
+      await tx.query(
+        `INSERT INTO employment (tenant_id, person_id, company_id, work_center_id, start_date) VALUES ($1, $2, $3, $4, current_date)`,
+        [tenantId, person.id, company.id, center.id],
+      );
       await createTenantDefaults(tx);
       return { userId: user.id, tenantId };
     });

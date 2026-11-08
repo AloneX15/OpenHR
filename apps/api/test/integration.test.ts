@@ -209,8 +209,8 @@ describe('fichaje', () => {
     await luis.post('/api/time/clock').send({ idempotencyKey: 'clave-0004', kind: 'break_end' }).expect(201);
     const out = await luis.post('/api/time/clock').send({ idempotencyKey: 'clave-0005' }).expect(201);
     expect(out.body.entry.kind).toBe('out');
-    // Nadie sin relación laboral activa puede fichar.
-    await adminAgent.post('/api/time/clock').send({ idempotencyKey: 'clave-admin' }).expect(400);
+    // Quien configura la instalación también queda dada de alta y puede fichar.
+    await adminAgent.post('/api/time/clock').send({ idempotencyKey: 'clave-admin' }).expect(201);
     const team = await marta.get('/api/time/team').expect(200);
     expect(team.body).toEqual([expect.objectContaining({ name: 'Luis Empleado', state: 'out' })]);
   });
@@ -368,7 +368,7 @@ describe('exportaciones', () => {
     const lines = r.text.replace(/^﻿/, '').trim().split('\r\n');
     expect(lines[0]).toContain('Horas trabajadas');
     expect(lines[0]).toContain('VAC (días)');
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(4);
   });
 });
 

@@ -156,13 +156,25 @@ export class EmployeesService {
     let person = input.nationalId
       ? await tx.maybeOne('SELECT id, email FROM person WHERE national_id = $1', [input.nationalId])
       : null;
+    if (!person && input.email) {
+      // Sin DNI coincidente, una persona con el mismo email también es la misma persona.
+      person = await tx.maybeOne(
+        `SELECT p.id, p.email FROM person p LEFT JOIN app_user u ON u.person_id = p.id
+          WHERE lower(p.email) = lower($1) OR lower(u.email) = lower($1) LIMIT 1`,
+        [input.email],
+      );
+      if (person && input.nationalId) {
+        await tx.query('UPDATE person SET national_id = coalesce(national_id, $2) WHERE id = $1', [person.id, input.nationalId]);
+      }
+    }
     if (!person) {
       person = await tx.one(
         `INSERT INTO person (tenant_id, first_name, last_name, national_id, email, phone)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email`,
         [tx.tenantId, input.firstName, input.lastName, input.nationalId ?? null, input.email ?? null, input.phone ?? null],
       );
-    } else {
+    }
+    {
       const overlap = await tx.maybeOne(
         `SELECT id FROM employment WHERE person_id = $1 AND company_id = $2
             AND (end_date IS NULL OR end_date >= $3::date)`,
