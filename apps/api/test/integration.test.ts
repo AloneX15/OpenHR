@@ -437,3 +437,61 @@ describe('importación', () => {
     expect(elena).toMatchObject({ start_date: '2024-05-02', national_id: '33333333P' });
   });
 });
+
+describe('turnos y bolsa de horas', () => {
+  const monday = (() => {
+    const d = new Date(Date.now() + 14 * 86400000);
+    while (d.getUTCDay() !== 1) d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  const tuesday = new Date(Date.parse(monday) + 86400000).toISOString().slice(0, 10);
+  const sunday = new Date(Date.parse(monday) + 6 * 86400000).toISOString().slice(0, 10);
+  let closing: string;
+  let opening: string;
+
+  it('RR. HH. crea plantillas de turno', async () => {
+    closing = (await adminAgent.post('/api/shifts/templates').send({ companyId, name: 'Cierre', start: '14:00', end: '23:00', breakMinutes: 30 }).expect(201)).body.id;
+    opening = (await adminAgent.post('/api/shifts/templates').send({ companyId, name: 'Apertura', start: '07:00', end: '15:00', breakMinutes: 30 }).expect(201)).body.id;
+    await luis.post('/api/shifts/templates').send({ companyId, name: 'X', start: '07:00', end: '15:00' }).expect(403);
+  });
+
+  it('el responsable planifica y ve los incumplimientos de descanso', async () => {
+    await marta
+      .put('/api/shifts')
+      .send({
+        items: [
+          { employmentId: luisEmp, date: monday, templateId: closing },
+          { employmentId: luisEmp, date: tuesday, templateId: opening },
+        ],
+      })
+      .expect(200);
+    await luis.put('/api/shifts').send({ items: [{ employmentId: luisEmp, date: monday, templateId: opening }] }).expect(403);
+    const plan = await marta.get(`/api/shifts?from=${monday}&to=${sunday}`).expect(200);
+    expect(plan.body.shifts).toHaveLength(2);
+    expect(plan.body.violations).toContainEqual(expect.objectContaining({ rule: 'rest_between_shifts', date: tuesday, employmentId: luisEmp }));
+  });
+
+  it('solo se ven y cuentan los turnos publicados', async () => {
+    expect((await luis.get(`/api/shifts/mine?from=${monday}&to=${sunday}`).expect(200)).body).toEqual([]);
+    const before = await luis.get(`/api/time/employments/${luisEmp}?from=${monday}&to=${monday}`).expect(200);
+    expect(before.body.days[0].expectedMinutes).toBe(480);
+    const p = await marta.post('/api/shifts/publish').send({ from: monday, to: sunday }).expect(201);
+    expect(p.body).toMatchObject({ published: 2, people: 1 });
+    expect((await luis.get(`/api/shifts/mine?from=${monday}&to=${sunday}`).expect(200)).body).toHaveLength(2);
+    const after = await luis.get(`/api/time/employments/${luisEmp}?from=${monday}&to=${monday}`).expect(200);
+    expect(after.body.days[0].expectedMinutes).toBe(510); // 9 h menos 30 min de pausa
+    expect((await luis.get('/api/notifications')).body[0]).toMatchObject({ type: 'shifts.published' });
+  });
+
+  it('la bolsa de horas suma los ajustes y solo RR. HH. los registra', async () => {
+    await adminAgent.patch(`/api/org/employees/${luisEmp}`).send({ hourBankEnabled: true, hourBankStart: '2025-01-01' }).expect(200);
+    const b0 = await luis.get(`/api/time/employments/${luisEmp}/hour-bank`).expect(200);
+    expect(b0.body.enabled).toBe(true);
+    expect(typeof b0.body.balance).toBe('number');
+    await luis.post('/api/time/hour-bank/adjustments').send({ employmentId: luisEmp, date: today, minutes: 60, kind: 'adjustment', reason: 'Me sumo horas' }).expect(403);
+    await adminAgent.post('/api/time/hour-bank/adjustments').send({ employmentId: luisEmp, date: today, minutes: 600, kind: 'opening', reason: 'Saldo inicial' }).expect(201);
+    const b1 = await luis.get(`/api/time/employments/${luisEmp}/hour-bank`).expect(200);
+    expect(b1.body.balance - b0.body.balance).toBe(600);
+    expect(b1.body.adjustments[0]).toMatchObject({ minutes: 600, kind: 'opening' });
+  });
+});

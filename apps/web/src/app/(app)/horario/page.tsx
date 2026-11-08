@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { HourBankCard } from '@/components/HourBankCard';
 import { TimeSheet } from '@/components/TimeSheet';
 import { Empty, PageHeader } from '@/components/ui';
 import { useSession } from '@/lib/session';
@@ -26,7 +27,10 @@ export default function MyTimePage() {
           )
         }
       />
-      <TimeSheet employmentId={employmentId} canEdit />
+      <div className="stack">
+        <TimeSheet employmentId={employmentId} canEdit />
+        <HourBankCard employmentId={employmentId} canAdjust={false} />
+      </div>
     </>
   );
 }

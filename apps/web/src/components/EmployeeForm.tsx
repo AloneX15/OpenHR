@@ -32,6 +32,8 @@ export interface EmployeeFormValue {
   schedule: Record<string, number>; // horas por día
   vacationDaysPerYear: number;
   createAccount: boolean;
+  hourBankEnabled: boolean;
+  hourBankStart: string;
 }
 
 export function emptyEmployee(companyId = ''): EmployeeFormValue {
@@ -52,6 +54,8 @@ export function emptyEmployee(companyId = ''): EmployeeFormValue {
     schedule: { '1': 8, '2': 8, '3': 8, '4': 8, '5': 8, '6': 0, '7': 0 },
     vacationDaysPerYear: 22,
     createAccount: true,
+    hourBankEnabled: false,
+    hourBankStart: '',
   };
 }
 
@@ -73,6 +77,8 @@ export function fromEmployee(e: any): EmployeeFormValue {
     schedule: Object.fromEntries(Object.entries(e.schedule as Record<string, number>).map(([k, v]) => [k, v / 60])),
     vacationDaysPerYear: Number(e.vacation_days_per_year),
     createAccount: false,
+    hourBankEnabled: Boolean(e.hour_bank_enabled),
+    hourBankStart: e.hour_bank_start ?? '',
   };
 }
 
@@ -120,7 +126,11 @@ export function EmployeeForm({
         weeklyMinutes: Math.round(weekly * 60),
         vacationDaysPerYear: Number(f.vacationDaysPerYear),
       };
-      await onSubmit(mode === 'create' ? { ...common, companyId, startDate: f.startDate, createAccount: f.createAccount } : common);
+      await onSubmit(
+        mode === 'create'
+          ? { ...common, companyId, startDate: f.startDate, createAccount: f.createAccount }
+          : { ...common, hourBankEnabled: f.hourBankEnabled, hourBankStart: f.hourBankEnabled ? f.hourBankStart || null : null },
+      );
     });
   };
 
@@ -230,6 +240,17 @@ export function EmployeeForm({
           ))}
         </div>
       </Field>
+      {mode === 'edit' && (
+        <div className="row" style={{ marginBottom: 12 }}>
+          <label className="check" style={{ margin: 0 }}>
+            <input type="checkbox" checked={f.hourBankEnabled} onChange={(e) => setF({ ...f, hourBankEnabled: e.target.checked })} />
+            Bolsa de horas activada
+          </label>
+          {f.hourBankEnabled && (
+            <input type="date" aria-label="Bolsa de horas desde" value={f.hourBankStart} onChange={(e) => setF({ ...f, hourBankStart: e.target.value })} style={{ width: 'auto' }} />
+          )}
+        </div>
+      )}
       {mode === 'create' && (
         <label className="check">
           <input type="checkbox" checked={f.createAccount} onChange={(e) => setF({ ...f, createAccount: e.target.checked })} />

@@ -174,6 +174,28 @@ Protecciones: el rol `openhr_app` no tiene `UPDATE` ni `DELETE`, y los triggers 
 #### `time_chain_seal` — sellos (append-only)
 `company_id`, `sealed_at`, `heads` (jsonb `{employment_id: {seq, hash}}`), `digest` (SHA-256), `sent_to` (emails).
 
+### Turnos y bolsa de horas
+
+#### `shift_template` — plantilla de turno
+`company_id`, `name` (único por sociedad), `start_time`, `end_time` (si es anterior o igual a la entrada, el turno acaba al día siguiente), `break_minutes`, `color` (`sky`, `navy`, `teal`, `amber`, `violet`, `rose`, `slate`), `active`.
+
+#### `shift_assignment` — turno asignado
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `employment_id`, `date` | | Único por relación laboral y fecha (fecha local de inicio) |
+| `shift_template_id` | uuid? | Plantilla de la que sale (o turno a medida) |
+| `is_day_off` | boolean | Día libre planificado |
+| `start_at`, `end_at` | timestamptz? | Obligatorios salvo día libre |
+| `break_minutes` | integer | Pausa no computable |
+| `published_at` | timestamptz? | `NULL` = borrador. Solo los publicados cuentan como jornada teórica y los ve la persona |
+
+Un turno publicado sustituye a la jornada semanal ese día, aunque sea festivo.
+
+#### `hour_bank_adjustment`
+Movimientos manuales de la bolsa: `date`, `minutes` (positivo o negativo), `kind` (`opening` saldo inicial, `paid` horas pagadas en nómina, `adjustment`), `reason`.
+
+Columnas añadidas: `employment.hour_bank_enabled` y `hour_bank_start`; `absence_type.consumes_hour_bank` (el tipo `COMP`, «Compensación de horas», viene creado); y en `company` las reglas de jornada: `min_rest_between_shifts_minutes` (720), `max_daily_ordinary_minutes` (540), `min_weekly_rest_minutes` (2160) y `max_yearly_overtime_minutes` (4800).
+
 ### Ausencias
 
 #### `absence_request`
@@ -240,6 +262,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `004_documents.sql` | Ficheros, documentos, lotes y páginas de nómina |
 | `005_security.sql` | RLS, permisos del rol de aplicación y funciones definer |
 | `006_session_hardening.sql` | Versión de sesión, comprobación de sesión y borrado del cuerpo de los emails enviados |
+| `007_shifts_hour_bank.sql` | Turnos, reglas de descanso por sociedad y bolsa de horas |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

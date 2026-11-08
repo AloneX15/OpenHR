@@ -5,6 +5,7 @@ import { canonicalJson, sha256 } from '../common/crypto';
 import { localDate, zonedToUtc } from '../common/dates';
 import { Tx } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ENTRY_COLUMNS, entriesBetween } from './entries';
 import {
   chainHash,
   contentDigest,
@@ -17,9 +18,6 @@ import {
   verifyChain,
   WorkState,
 } from './worktime';
-
-const ENTRY_COLUMNS = `id, employment_id, seq, kind, occurred_at, recorded_at, device_time, source, voids_entry_id,
-  reason, created_by, content_digest, prev_hash, hash`;
 
 @Injectable()
 export class TimeService {
@@ -84,23 +82,10 @@ export class TimeService {
     return row;
   }
 
-  private async entriesBetween(tx: Tx, employmentId: string, from: Date, to: Date) {
-    // Se cargan también los eventos de anulación posteriores que afecten al rango.
-    return tx.query<StoredEntry>(
-      `SELECT ${ENTRY_COLUMNS} FROM time_entry
-        WHERE employment_id = $1 AND (
-          (kind <> 'void' AND occurred_at >= $2 AND occurred_at < $3)
-          OR (kind = 'void' AND voids_entry_id IN (
-                SELECT id FROM time_entry WHERE employment_id = $1 AND occurred_at >= $2 AND occurred_at < $3)))
-        ORDER BY occurred_at, seq`,
-      [employmentId, from, to],
-    );
-  }
-
   /** Estado actual: se mira hacia atrás hasta 36 h para encontrar la última entrada abierta. */
   async currentState(tx: Tx, employmentId: string, now = new Date()): Promise<{ state: WorkState; since: Date | null }> {
     const from = new Date(now.getTime() - 36 * 3600 * 1000);
-    const entries = await this.entriesBetween(tx, employmentId, from, new Date(now.getTime() + 60_000));
+    const entries = await entriesBetween(tx, employmentId, from, new Date(now.getTime() + 60_000));
     const state = stateAfter(entries);
     const live = entries.filter((e) => e.kind !== 'void' && !entries.some((v) => v.voids_entry_id === e.id));
     const last = live[live.length - 1];
@@ -220,7 +205,7 @@ export class TimeService {
     const start = zonedToUtc(from, '00:00', cal.timezone);
     const end = zonedToUtc(to, '23:59', cal.timezone);
     const endExclusive = new Date(end.getTime() + 60_000);
-    const entries = await this.entriesBetween(tx, employmentId, start, endExclusive);
+    const entries = await entriesBetween(tx, employmentId, start, endExclusive);
     const authors = await tx.query(
       `SELECT u.id, coalesce(p.first_name || ' ' || p.last_name, u.email) AS name FROM app_user u
          LEFT JOIN person p ON p.id = u.person_id WHERE u.id = ANY($1)`,
@@ -233,6 +218,7 @@ export class TimeService {
       expectedMinutes: expectedMinutes(cal, d.date),
       holiday: cal.holidays.get(d.date) ?? null,
       absence: cal.absences.get(d.date) ?? null,
+      shift: cal.shifts?.get(d.date) ?? null,
     }));
     return {
       timezone: cal.timezone,

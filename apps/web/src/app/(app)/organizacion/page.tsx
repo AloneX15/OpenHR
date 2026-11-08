@@ -550,6 +550,7 @@ function AbsenceTypes({ isAdmin }: { isAdmin: boolean }) {
                     {!t.paid && <Badge tone="warning">No retribuido</Badge>}
                     {!t.requires_approval && <Badge>Sin aprobación</Badge>}
                     {t.sensitive && <Badge tone="danger">Dato sensible</Badge>}
+                    {t.consumes_hour_bank && <Badge tone="info">Consume bolsa</Badge>}
                   </div>
                 </td>
                 <td className="num">
@@ -570,7 +571,7 @@ function AbsenceTypes({ isAdmin }: { isAdmin: boolean }) {
 }
 
 function AbsenceTypeModal({ onClose, onDone }: { onClose: () => void; onDone: () => Promise<void> }) {
-  const [f, setF] = useState({ code: '', name: '', paid: true, countsAsVacation: false, requiresApproval: true, dayUnit: 'working', sensitive: false });
+  const [f, setF] = useState({ code: '', name: '', paid: true, countsAsVacation: false, requiresApproval: true, dayUnit: 'working', sensitive: false, consumesHourBank: false });
   const { busy, error, run } = useAction();
   return (
     <Modal title="Nuevo tipo de ausencia" onClose={onClose}>
@@ -605,6 +606,7 @@ function AbsenceTypeModal({ onClose, onDone }: { onClose: () => void; onDone: ()
             ['countsAsVacation', 'Descuenta del saldo de vacaciones'],
             ['requiresApproval', 'Necesita aprobación'],
             ['sensitive', 'Dato sensible (el responsable no ve el motivo)'],
+            ['consumesHourBank', 'Consume la bolsa de horas'],
           ] as const
         ).map(([k, label]) => (
           <label key={k} className="check">

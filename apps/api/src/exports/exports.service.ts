@@ -2,9 +2,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Actor, assertEmploymentAccess, assertHr, audit } from '../common/access';
 import { expectedMinutes, isEmployed, isWorkingDay, loadCalendars } from '../common/calendar';
 import { sha256 } from '../common/crypto';
-import { monthRange, zonedToUtc } from '../common/dates';
+import { monthRange } from '../common/dates';
 import { Tx } from '../db/db.service';
-import { dailySummaries, StoredEntry } from '../time/worktime';
+import { entriesForDates } from '../time/entries';
+import { dailySummaries } from '../time/worktime';
 
 /** CSV para Excel en español: separador «;», BOM UTF-8 y CRLF. */
 export function toCsv(rows: (string | number | null | undefined)[][]): Buffer {
@@ -74,14 +75,7 @@ export class ExportsService {
     ];
     for (const e of emps) {
       const cal = cals.get(e.id)!;
-      const start = zonedToUtc(q.from, '00:00', cal.timezone);
-      const end = new Date(zonedToUtc(q.to, '23:59', cal.timezone).getTime() + 60_000);
-      const entries = await tx.query<StoredEntry>(
-        `SELECT * FROM time_entry WHERE employment_id = $1 AND (
-            (kind <> 'void' AND occurred_at >= $2 AND occurred_at < $3)
-            OR (kind = 'void' AND voids_entry_id IN (SELECT id FROM time_entry WHERE employment_id = $1 AND occurred_at >= $2 AND occurred_at < $3)))`,
-        [e.id, start, end],
-      );
+      const entries = await entriesForDates(tx, e.id, q.from, q.to, cal.timezone);
       const manualByDay = new Map<string, number>();
       const voidByDay = new Map<string, number>();
       const days = dailySummaries(entries, cal.timezone, q.from, q.to);
@@ -146,20 +140,13 @@ export class ExportsService {
     const header = [
       'CIF', 'Sociedad', 'Nº empleado', 'Apellidos', 'Nombre', 'DNI/NIE', 'Periodo', 'Alta desde', 'Alta hasta',
       'Días naturales de alta', 'Días laborables teóricos', 'Horas teóricas', 'Horas trabajadas', 'Diferencia (horas)',
-      'Días con ausencia retribuida', 'Días con ausencia no retribuida',
+      'Exceso sobre jornada (horas)', 'Días con ausencia retribuida', 'Días con ausencia no retribuida',
       ...types.map((t) => `${t.code} (días)`),
     ];
     const rows: (string | number | null)[][] = [header];
     for (const e of emps) {
       const cal = cals.get(e.id)!;
-      const start = zonedToUtc(from, '00:00', cal.timezone);
-      const end = new Date(zonedToUtc(to, '23:59', cal.timezone).getTime() + 60_000);
-      const entries = await tx.query<StoredEntry>(
-        `SELECT * FROM time_entry WHERE employment_id = $1 AND (
-            (kind <> 'void' AND occurred_at >= $2 AND occurred_at < $3)
-            OR (kind = 'void' AND voids_entry_id IN (SELECT id FROM time_entry WHERE employment_id = $1 AND occurred_at >= $2 AND occurred_at < $3)))`,
-        [e.id, start, end],
-      );
+      const entries = await entriesForDates(tx, e.id, from, to, cal.timezone);
       const days = dailySummaries(entries, cal.timezone, from, to);
       let employedDays = 0;
       let workingDays = 0;
@@ -167,6 +154,7 @@ export class ExportsService {
       let worked = 0;
       let paidAbs = 0;
       let unpaidAbs = 0;
+      let surplus = 0;
       const perType = new Map<string, number>();
       for (const d of days) {
         if (!isEmployed(cal, d.date)) continue;
@@ -174,6 +162,7 @@ export class ExportsService {
         if (isWorkingDay(cal, d.date)) workingDays++;
         expected += expectedMinutes(cal, d.date);
         worked += d.workedMinutes;
+        surplus += Math.max(0, d.workedMinutes - expectedMinutes(cal, d.date));
         const abs = cal.absences.get(d.date);
         if (abs) {
           perType.set(abs.typeId, (perType.get(abs.typeId) ?? 0) + 1);
@@ -196,6 +185,7 @@ export class ExportsService {
         decimal(expected / 60),
         decimal(worked / 60),
         decimal((worked - expected) / 60),
+        decimal(surplus / 60),
         paidAbs,
         unpaidAbs,
         ...types.map((t) => perType.get(t.id) ?? 0),

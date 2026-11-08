@@ -79,6 +79,22 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `POST /time/seal` | H | `{ companyId }`: sella y envía la huella por email |
 | `GET /time/seals?companyId=` | H | Sellos anteriores |
 
+## Turnos y bolsa de horas
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /shifts/templates?companyId=` | S | Plantillas de turno |
+| `POST /shifts/templates`, `PATCH /shifts/templates/:id` | H | `companyId`, `name`, `start`, `end` (HH:MM), `breakMinutes`, `color`, `active` |
+| `GET /shifts?from=&to=&companyId=` | R / H | Cuadrante: personas que puedo planificar, turnos (también borradores) e incumplimientos de las reglas de descanso. Máximo dos meses |
+| `GET /shifts/mine?from=&to=` | S | Mis turnos publicados |
+| `PUT /shifts` | R / H | `{ items: [{ employmentId, date, templateId? \| start, end, breakMinutes? \| dayOff \| clear }] }`. Todo cambio vuelve a borrador |
+| `POST /shifts/publish` | R / H | `{ from, to, companyId? }`: publica los borradores y avisa a cada persona |
+| `PATCH /org/companies/:id/work-rules` | H | Reglas de jornada de la sociedad (minutos): descanso entre jornadas, máximo diario, descanso semanal, máximo anual de horas extra |
+| `GET /time/employments/:id/hour-bank?year=` | E / R / H | Saldo de la bolsa, exceso sobre jornada por mes y del año, límite anual y movimientos |
+| `POST /time/hour-bank/adjustments` | H | `{ employmentId, date, minutes, kind: opening \| paid \| adjustment, reason }` |
+
+Las reglas comprobadas son las del Estatuto de los Trabajadores por defecto: 12 h entre jornadas (art. 34.3), 9 h de trabajo efectivo al día (art. 34.3) y día y medio de descanso semanal, acumulable en 14 días (art. 37.1). Son avisos: se puede publicar igualmente.
+
 ## Ausencias (`/absences`)
 
 | Método y ruta | Quién | Descripción |

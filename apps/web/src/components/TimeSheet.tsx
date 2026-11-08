@@ -152,6 +152,7 @@ export function TimeSheet({ employmentId, canEdit, canExport = true }: { employm
                   <td className="num">{d.workedMinutes ? shortHm(d.workedMinutes) : '—'}</td>
                   <td className="num">{d.expectedMinutes ? shortHm(d.expectedMinutes) : '—'}</td>
                   <td className="small">
+                    {d.shift && <Badge tone="info">{d.shift.isDayOff ? 'Libre' : `${d.shift.name ?? 'Turno'} ${timeIn(d.shift.startAt, tz)}–${timeIn(d.shift.endAt, tz)}`}</Badge>}{' '}
                     {d.holiday && <Badge>{d.holiday}</Badge>} {d.absence && <Badge tone="info">{d.absence.name}</Badge>}{' '}
                     {d.open && <Badge tone="success">En curso</Badge>}
                     {d.incidents.map((i: string) => (

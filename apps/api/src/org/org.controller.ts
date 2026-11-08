@@ -209,9 +209,9 @@ export class OrgController {
     return this.run(u, async (tx) => {
       assertAdmin(await loadActor(tx));
       return tx.one(
-        `INSERT INTO absence_type (tenant_id, code, name, paid, counts_as_vacation, requires_approval, day_unit, sensitive)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-        [tx.tenantId, input.code, input.name, input.paid, input.countsAsVacation, input.requiresApproval, input.dayUnit, input.sensitive],
+        `INSERT INTO absence_type (tenant_id, code, name, paid, counts_as_vacation, requires_approval, day_unit, sensitive, consumes_hour_bank)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+        [tx.tenantId, input.code, input.name, input.paid, input.countsAsVacation, input.requiresApproval, input.dayUnit, input.sensitive, input.consumesHourBank],
       );
     });
   }
@@ -229,6 +229,7 @@ export class OrgController {
         requires_approval: input.requiresApproval,
         day_unit: input.dayUnit,
         sensitive: input.sensitive,
+        consumes_hour_bank: input.consumesHourBank,
         active: input.active,
       });
       return tx.one('SELECT * FROM absence_type WHERE id = $1', [id]);
@@ -358,4 +359,5 @@ const absenceTypeInput = z.object({
   requiresApproval: z.boolean().default(true),
   dayUnit: z.enum(['working', 'calendar']).default('working'),
   sensitive: z.boolean().default(false),
+  consumesHourBank: z.boolean().default(false),
 });

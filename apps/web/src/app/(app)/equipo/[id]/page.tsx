@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { EmployeeForm, fromEmployee } from '@/components/EmployeeForm';
 import { RequestModal } from '@/components/RequestModal';
+import { HourBankCard } from '@/components/HourBankCard';
 import { TimeSheet } from '@/components/TimeSheet';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
@@ -44,7 +45,12 @@ export default function EmployeePage() {
         ]}
       />
       {tab === 'ficha' && <Profile e={e} isHr={isHr} isAdmin={me.isAdmin} reload={emp.reload} />}
-      {tab === 'horario' && <TimeSheet employmentId={id} canEdit={isHr} canExport={isHr} />}
+      {tab === 'horario' && (
+        <div className="stack">
+          <TimeSheet employmentId={id} canEdit={isHr} canExport={isHr} />
+          <HourBankCard employmentId={id} canAdjust={isHr} />
+        </div>
+      )}
       {tab === 'ausencias' && <EmployeeAbsences employmentId={id} isHr={isHr} />}
       {tab === 'documentos' && <EmployeeDocuments personId={e.person_id} companyId={e.company_id} />}
     </>

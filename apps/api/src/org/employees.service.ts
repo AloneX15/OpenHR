@@ -52,6 +52,8 @@ export const employeeUpdate = z.object({
   weeklyMinutes: z.number().int().min(0).max(60 * 60).optional(),
   schedule: zSchedule.optional(),
   vacationDaysPerYear: z.number().min(0).max(60).optional(),
+  hourBankEnabled: z.boolean().optional(),
+  hourBankStart: zDate.nullish(),
 });
 
 /** Jornada semanal repartida de lunes a viernes. */
@@ -249,6 +251,8 @@ export class EmployeesService {
       weekly_minutes: input.weeklyMinutes,
       schedule: input.schedule ? JSON.stringify(input.schedule) : undefined,
       vacation_days_per_year: input.vacationDaysPerYear,
+      hour_bank_enabled: input.hourBankEnabled,
+      hour_bank_start: input.hourBankStart,
     };
     await updateColumns(tx, 'person', emp.person_id, personFields);
     await updateColumns(tx, 'employment', employmentId, empFields);

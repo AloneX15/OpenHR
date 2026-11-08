@@ -11,6 +11,7 @@ import { ThemeSwitch } from './ThemeSwitch';
 const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boolean }[] = [
   { href: '/', label: 'Inicio', icon: 'home', show: () => true },
   { href: '/horario', label: 'Mi control horario', icon: 'clock', show: (m) => m.employments.length > 0 },
+  { href: '/turnos', label: 'Turnos', icon: 'calendar', show: (m) => m.isManager || m.isHr },
   { href: '/ausencias', label: 'Ausencias', icon: 'vacation', show: () => true },
   { href: '/documentos', label: 'Documentos', icon: 'documents', show: () => true },
   { href: '/equipo', label: 'Equipo', icon: 'team', show: (m) => m.isManager || m.isHr },

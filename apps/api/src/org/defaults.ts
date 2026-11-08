@@ -15,14 +15,15 @@ export const DEFAULT_ABSENCE_TYPES = [
   { code: 'MUD', name: 'Traslado de domicilio (1 día)', paid: true, vacation: false, approval: true, unit: 'working', sensitive: false },
   { code: 'DEB', name: 'Deber inexcusable de carácter público', paid: true, vacation: false, approval: true, unit: 'working', sensitive: false },
   { code: 'NR', name: 'Permiso no retribuido', paid: false, vacation: false, approval: true, unit: 'working', sensitive: false },
+  { code: 'COMP', name: 'Compensación de horas (bolsa)', paid: true, vacation: false, approval: true, unit: 'working', sensitive: false, bank: true },
 ] as const;
 
 export async function createTenantDefaults(tx: Tx) {
   for (const t of DEFAULT_ABSENCE_TYPES) {
     await tx.query(
-      `INSERT INTO absence_type (tenant_id, code, name, paid, counts_as_vacation, requires_approval, day_unit, sensitive)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (tenant_id, code) DO NOTHING`,
-      [tx.tenantId, t.code, t.name, t.paid, t.vacation, t.approval, t.unit, t.sensitive],
+      `INSERT INTO absence_type (tenant_id, code, name, paid, counts_as_vacation, requires_approval, day_unit, sensitive, consumes_hour_bank)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (tenant_id, code) DO NOTHING`,
+      [tx.tenantId, t.code, t.name, t.paid, t.vacation, t.approval, t.unit, t.sensitive, 'bank' in t ? t.bank : false],
     );
   }
   const year = new Date().getUTCFullYear();

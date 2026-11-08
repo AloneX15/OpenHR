@@ -8,6 +8,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ExportsModule } from './exports/exports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrgModule } from './org/org.module';
+import { ShiftsModule } from './shifts/shifts.module';
 import { TimeModule } from './time/time.module';
 
 @Controller()
@@ -23,7 +24,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule],
+  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule],
   controllers: [HealthController],
 })
 export class AppModule {}
