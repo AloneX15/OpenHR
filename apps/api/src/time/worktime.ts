@@ -134,6 +134,8 @@ export interface ChainContent {
   voidsEntryId: string | null;
   reason: string | null;
   createdBy: string;
+  /** Canal, kiosco y posición: solo se incluyen si tienen valor (los fichajes antiguos no los tienen). */
+  context?: { channel?: string; kioskDeviceId?: string; latitude?: number; longitude?: number; accuracyM?: number; insideZone?: boolean };
 }
 
 export function contentDigest(c: ChainContent): string {
@@ -158,6 +160,12 @@ export interface StoredEntry {
   content_digest: string;
   prev_hash: string | null;
   hash: string;
+  channel?: string | null;
+  kiosk_device_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  accuracy_m?: number | null;
+  inside_zone?: boolean | null;
 }
 
 export function contentOf(e: StoredEntry): ChainContent {
@@ -171,7 +179,20 @@ export function contentOf(e: StoredEntry): ChainContent {
     voidsEntryId: e.voids_entry_id,
     reason: e.reason,
     createdBy: e.created_by,
+    context: entryContext(e),
   };
+}
+
+export function entryContext(e: Partial<StoredEntry>): ChainContent['context'] {
+  const c = {
+    channel: e.channel ?? undefined,
+    kioskDeviceId: e.kiosk_device_id ?? undefined,
+    latitude: e.latitude ?? undefined,
+    longitude: e.longitude ?? undefined,
+    accuracyM: e.accuracy_m ?? undefined,
+    insideZone: e.inside_zone ?? undefined,
+  };
+  return Object.values(c).some((v) => v !== undefined) ? c : undefined;
 }
 
 export type ChainCheck = { ok: true; count: number; head: string | null } | { ok: false; seq: number; problem: string };

@@ -7,6 +7,7 @@ import { ApprovalFlows } from '@/components/Approvals';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
 import { FactorialMigration } from '@/components/FactorialMigration';
 import { OidcSettings } from '@/components/OidcSettings';
+import { GeoFields, KioskDevices } from '@/components/Kiosk';
 import { ChecklistTemplatesAdmin, CustomFieldsAdmin } from '@/components/Lifecycle';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
@@ -343,6 +344,7 @@ function Centers() {
           <Empty>Sin departamentos.</Empty>
         )}
       </Card>
+      <KioskDevices />
       {center && <CenterModal center={center} companies={companies.data ?? []} onClose={() => setCenter(null)} onDone={centers.reload} />}
     </div>
   );
@@ -355,12 +357,17 @@ function CenterModal({ center, companies, onClose, onDone }: { center: any; comp
     timezone: center.timezone ?? 'Europe/Madrid',
     region: center.region ?? '',
     address: center.address ?? '',
+    geoPolicy: center.geo_policy ?? 'off',
+    latitude: center.latitude ?? null,
+    longitude: center.longitude ?? null,
+    radiusM: center.radius_m ?? 150,
   });
   const { busy, error, run } = useAction();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run(async () => {
-      const body = { name: f.name, timezone: f.timezone, region: f.region || undefined, address: f.address || undefined };
+      const geo = f.geoPolicy === 'off' ? { geoPolicy: 'off' } : { geoPolicy: f.geoPolicy, latitude: f.latitude, longitude: f.longitude, radiusM: f.radiusM };
+      const body = { name: f.name, timezone: f.timezone, region: f.region || undefined, address: f.address || undefined, ...geo };
       if (center.id) await api.patch(`/org/work-centers/${center.id}`, body);
       else await api.post('/org/work-centers', { ...body, companyId: f.companyId });
       await onDone();
@@ -400,6 +407,7 @@ function CenterModal({ center, companies, onClose, onDone }: { center: any; comp
         <Field label="Dirección">
           <input value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
         </Field>
+        <GeoFields value={f} onChange={setF} />
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
             Cancelar

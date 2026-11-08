@@ -35,6 +35,8 @@ export class TimeController {
         kind: zKind.optional(),
         idempotencyKey: z.string().min(8).max(100),
         deviceTime: z.string().datetime({ offset: true }).optional(),
+        location: z.object({ latitude: z.number().min(-90).max(90), longitude: z.number().min(-180).max(180), accuracy: z.number().min(0).max(100000).optional() }).optional(),
+        offlineAt: z.string().datetime({ offset: true }).optional(),
       }),
       body,
     );

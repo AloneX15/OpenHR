@@ -6,6 +6,12 @@
 
 **Fichar.** En **Inicio** pulsa *Fichar entrada* al empezar, *Pausa* y *Volver de la pausa* si paras, y *Fichar salida* al terminar. Vale la hora del servidor, no la del móvil. Si trabajas en varias sociedades del grupo, verás un reloj por cada una.
 
+**Sin conexión.** Si fichas sin cobertura, el fichaje se guarda en tu móvil con su hora y se envía solo al recuperar la conexión (hasta 72 horas). Queda marcado como «sin conexión».
+
+**Kiosco.** Si tu centro tiene una tableta para fichar, en **Mi cuenta → Kiosco de fichaje** elige un PIN: obtendrás tu código. En la tableta escribe código y PIN, o pulsa «Fichar con mi QR» y enseña el QR de tu móvil.
+
+**Ubicación.** Si tu centro lo ha activado, al fichar se pide la ubicación solo en ese momento. Si es obligatoria, solo se puede fichar dentro de la zona del centro (salvo teletrabajo).
+
 **Corregir un fichaje.** En **Mi control horario**, *Añadir fichaje olvidado* (con motivo) o la × de un fichaje para anularlo. Nada se borra: lo anulado queda tachado y tu responsable recibe un aviso. *Descargar registro* te da tu registro de jornada en CSV y *Comprobar integridad* verifica que nadie lo ha alterado.
 
 **Pedir vacaciones o un permiso.** **Ausencias → Solicitar ausencia**. Verás cuántos días cuenta (laborables o naturales, según el tipo). Las bajas médicas no necesitan aprobación y tu responsable no ve el motivo. Puedes anular una solicitud pendiente, o una aprobada que aún no ha empezado.
@@ -47,6 +53,7 @@
   2. OpenHR propone a quién va cada página buscando el DNI/NIE.
   3. Revisa cada página (pulsa su número para verla) y confirma, cambia la persona u *Omitir* si no es una nómina. *Confirmar sugerencias* confirma de golpe las que tienen una única coincidencia.
   4. *Publicar*: cada persona recibe su nómina y un aviso.
+- **Organización → Centros**: zona de fichaje de cada centro (ubicación y radio; no usar, registrar u obligar) y **kioscos**: crea uno y abre el enlace que aparece en la tableta de la entrada.
 - **Organización → Festivos**: añade los autonómicos y locales de cada centro. Los nacionales se cargan solos.
 - **Equipo → persona → Ficha → Editar**: activar la bolsa de horas y desde qué fecha. En **Control horario**, *Registrar movimiento* para el saldo inicial o las horas pagadas en nómina.
 - **Anuncios, Políticas y Firmas**: publicar anuncios, subir políticas (o nuevas versiones) y ver quién falta por aceptarlas, y pedir firmas de documentos PDF.

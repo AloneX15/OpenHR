@@ -59,6 +59,7 @@ export const employeeUpdate = z.object({
   vacationDaysPerYear: z.number().min(0).max(60).optional(),
   hourBankEnabled: z.boolean().optional(),
   hourBankStart: zDate.nullish(),
+  remoteAllowed: z.boolean().optional(),
   sex: z.enum(['female', 'male', 'other']).nullish(),
   professionalGroup: z.string().trim().max(100).nullish(),
 });
@@ -139,6 +140,7 @@ export class EmployeesService {
     );
     if (!row) throw new NotFoundException('Relación laboral no encontrada');
     delete row.time_chain_head;
+    delete row.kiosk_pin_hash;
     if (!includeSensitive) {
       delete row.national_id;
       delete row.birth_date;
@@ -282,6 +284,7 @@ export class EmployeesService {
       hour_bank_enabled: input.hourBankEnabled,
       hour_bank_start: input.hourBankStart,
       professional_group: input.professionalGroup,
+      remote_allowed: input.remoteAllowed,
     };
     await updateColumns(tx, 'person', emp.person_id, personFields);
     await updateColumns(tx, 'employment', employmentId, empFields);

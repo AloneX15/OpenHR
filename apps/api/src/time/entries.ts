@@ -3,7 +3,7 @@ import { Tx } from '../db/db.service';
 import { StoredEntry } from './worktime';
 
 export const ENTRY_COLUMNS = `id, employment_id, seq, kind, occurred_at, recorded_at, device_time, source, voids_entry_id,
-  reason, created_by, content_digest, prev_hash, hash`;
+  reason, created_by, content_digest, prev_hash, hash, channel, kiosk_device_id, latitude, longitude, accuracy_m, inside_zone`;
 
 /**
  * Fichajes de una relación laboral entre dos instantes, más las anulaciones (aunque sean

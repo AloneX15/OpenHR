@@ -25,6 +25,7 @@ export interface Me {
     job_title: string | null;
     work_center_name: string | null;
     timezone: string;
+    geo_policy: 'off' | 'record' | 'require';
   }[];
 }
 

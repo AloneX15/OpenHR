@@ -184,6 +184,8 @@ Definición de un campo propio: `entity` (`person` o `employment`), `key` (únic
 
 Protecciones: el rol `openhr_app` no tiene `UPDATE` ni `DELETE`, y los triggers `time_entry_no_update` y `time_entry_no_truncate` lo impiden incluso al propietario. Ver [ADR 0002](adr/0002-time-entry-hash-chain.md).
 
+Columnas añadidas en la migración 015: `channel` (`web`, `kiosk`, `offline`, `import`), `kiosk_device_id`, `latitude`, `longitude`, `accuracy_m` e `inside_zone`. Cuando tienen valor entran en la huella del eslabón. `source` admite además `offline` (fichaje hecho sin conexión y enviado después). En `work_center`: `latitude`, `longitude`, `radius_m` y `geo_policy` (`off`, `record`, `require`); en `employment`: `remote_allowed`, `kiosk_code` y `kiosk_pin_hash` (bcrypt). Tabla `kiosk_device`: centro, nombre y hash del token del dispositivo.
+
 #### `time_chain_seal` — sellos (append-only)
 `company_id`, `sealed_at`, `heads` (jsonb `{employment_id: {seq, hash}}`), `digest` (SHA-256), `sent_to` (emails).
 
@@ -337,6 +339,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `012_privacy_whistleblowing.sql` | Derechos RGPD, conservación y purga de fichajes con punto de control, canal de denuncias cifrado |
 | `013_migration_jobs.sql` | Correspondencias y ejecuciones de migraciones desde otros sistemas |
 | `014_oidc.sql` | Proveedor OpenID Connect por organización (`oidc_provider`, secreto cifrado) y `oidc_provider_by_domain()` |
+| `015_kiosk_geo_offline.sql` | Kioscos, PIN y código de kiosco, zona de fichaje por centro, teletrabajo permitido y contexto del fichaje (canal, kiosco, posición) |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

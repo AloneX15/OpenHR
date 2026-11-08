@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, newIdempotencyKey } from '@/lib/api';
 import { hhmm, timeIn, todayIso } from '@/lib/format';
 import { Me } from '@/lib/session';
+import { currentPosition, enqueue, flush, isNetworkError, queued } from '@/lib/offline-clock';
 import { IconButton } from './icons';
 import { ErrorBox, useAction, useLoad } from './ui';
 
@@ -30,13 +31,45 @@ function EmploymentClock({ employment, showCompany }: { employment: Me['employme
   }, [employment.id]);
   const action = useAction();
 
+  const [offlineState, setOfflineState] = useState<State | null>(null);
+  const [pending, setPending] = useState(0);
+
+  // Al cargar y al volver la conexión, se envían los fichajes guardados sin conexión.
+  useEffect(() => {
+    const sync = async () => {
+      setPending(queued().length);
+      if (!queued().length || !navigator.onLine) return;
+      const r = await flush();
+      setPending(queued().length);
+      if (r.sent) {
+        setOfflineState(null);
+        await reload();
+      }
+    };
+    void sync();
+    window.addEventListener('online', sync);
+    return () => window.removeEventListener('online', sync);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const clock = (kind: 'in' | 'out' | 'break_start' | 'break_end') =>
     action.run(async () => {
-      await api.post('/time/clock', { employmentId: employment.id, kind, idempotencyKey: newIdempotencyKey(), deviceTime: new Date().toISOString() });
-      await reload();
+      const at = new Date().toISOString();
+      const idempotencyKey = newIdempotencyKey();
+      const location = employment.geo_policy !== 'off' ? await currentPosition() : undefined;
+      try {
+        await api.post('/time/clock', { employmentId: employment.id, kind, idempotencyKey, deviceTime: at, location });
+        await reload();
+      } catch (e) {
+        if (!isNetworkError(e)) throw e;
+        // Sin conexión: se guarda con su hora y se envía en cuanto vuelva.
+        enqueue({ employmentId: employment.id, kind, offlineAt: at, idempotencyKey });
+        setPending(queued().length);
+        setOfflineState(kind === 'in' || kind === 'break_end' ? 'working' : kind === 'break_start' ? 'break' : 'out');
+      }
     });
 
-  const state: State = data?.status?.state ?? 'out';
+  const state: State = offlineState ?? data?.status?.state ?? 'out';
   // Minutos de hoy: lo calculado por el servidor más lo transcurrido desde que se cargó.
   const extra = state === 'working' && data ? (now.getTime() - data.loadedAt) / 60000 : 0;
   const worked = (data?.day?.workedMinutes ?? 0) + extra;
@@ -51,7 +84,13 @@ function EmploymentClock({ employment, showCompany }: { employment: Me['employme
         {state === 'working' ? 'Trabajando' : state === 'break' ? 'En pausa' : 'Fuera de jornada'}
         {data?.status?.since && state !== 'out' && <span className="muted"> desde las {timeIn(data.status.since, employment.timezone)}</span>}
       </div>
-      <ErrorBox error={error || action.error} />
+      <ErrorBox error={action.error || (pending ? null : error)} />
+      {pending > 0 && (
+        <p className="small" style={{ color: 'var(--warning)' }}>
+          Sin conexión: {pending} fichaje(s) guardado(s) en este dispositivo. Se enviarán solos al recuperar la conexión.
+        </p>
+      )}
+      {employment.geo_policy !== 'off' && <p className="muted small">Tu centro registra la ubicación al fichar.</p>}
       <div className="clock-actions">
         {state === 'out' && (
           <IconButton icon="timer" size={20} className="btn btn-success btn-lg" disabled={action.busy} onClick={() => clock('in')}>

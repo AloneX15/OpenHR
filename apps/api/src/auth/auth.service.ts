@@ -90,7 +90,8 @@ export class AuthService {
       const employments = actor.personId
         ? await tx.query(
             `SELECT e.id, e.company_id, c.name AS company_name, e.job_title, e.start_date, e.end_date,
-                    wc.name AS work_center_name, coalesce(wc.timezone, 'Europe/Madrid') AS timezone
+                    wc.name AS work_center_name, coalesce(wc.timezone, 'Europe/Madrid') AS timezone,
+                    coalesce(wc.geo_policy, 'off') AS geo_policy
                FROM employment e
                JOIN company c ON c.id = e.company_id
                LEFT JOIN work_center wc ON wc.id = e.work_center_id

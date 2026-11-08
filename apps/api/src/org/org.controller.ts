@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { z } from 'zod';
 import { assertAdmin, assertEmploymentAccess, assertHr, audit, loadActor } from '../common/access';
 import { CurrentUser, parse, SessionUser, zDate, zUuid } from '../common/http';
@@ -22,6 +22,10 @@ const centerInput = z.object({
   timezone: z.string().refine((tz) => timezones.has(tz) || tz === 'UTC', 'Zona horaria no válida').default('Europe/Madrid'),
   region: z.string().trim().optional(),
   address: z.string().trim().optional(),
+  latitude: z.number().min(-90).max(90).nullish(),
+  longitude: z.number().min(-180).max(180).nullish(),
+  radiusM: z.number().int().min(20).max(5000).nullish(),
+  geoPolicy: z.enum(['off', 'record', 'require']).optional(),
 });
 
 @Controller('org')
@@ -92,9 +96,9 @@ export class OrgController {
     return this.run(u, async (tx) => {
       assertHr(await loadActor(tx), input.companyId);
       return tx.one(
-        `INSERT INTO work_center (tenant_id, company_id, name, timezone, region, address)
-         VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-        [tx.tenantId, input.companyId, input.name, input.timezone, input.region ?? null, input.address ?? null],
+        `INSERT INTO work_center (tenant_id, company_id, name, timezone, region, address, latitude, longitude, radius_m, geo_policy)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+        [tx.tenantId, input.companyId, input.name, input.timezone, input.region ?? null, input.address ?? null, input.latitude ?? null, input.longitude ?? null, input.radiusM ?? null, input.geoPolicy ?? 'off'],
       );
     });
   }
@@ -106,7 +110,14 @@ export class OrgController {
       const wc = await tx.maybeOne('SELECT company_id FROM work_center WHERE id = $1', [id]);
       if (!wc) throw new NotFoundException();
       assertHr(await loadActor(tx), wc.company_id);
-      await updateColumns(tx, 'work_center', id, input);
+      const { radiusM, geoPolicy, ...rest } = input;
+      if (geoPolicy && geoPolicy !== 'off' && (input.latitude == null || input.longitude == null || radiusM == null)) {
+        const cur = await tx.one('SELECT latitude, longitude, radius_m FROM work_center WHERE id = $1', [id]);
+        if ((input.latitude ?? cur.latitude) == null || (input.longitude ?? cur.longitude) == null || (radiusM ?? cur.radius_m) == null) {
+          throw new BadRequestException('Para usar la zona de fichaje indica la ubicación y el radio del centro');
+        }
+      }
+      await updateColumns(tx, 'work_center', id, { ...rest, radius_m: radiusM, geo_policy: geoPolicy });
       return tx.one('SELECT * FROM work_center WHERE id = $1', [id]);
     });
   }

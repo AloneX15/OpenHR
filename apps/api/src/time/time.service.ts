@@ -5,12 +5,14 @@ import { canonicalJson, sha256 } from '../common/crypto';
 import { localDate, zonedToUtc } from '../common/dates';
 import { Tx } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { insideZone } from '../common/geo';
 import { ENTRY_COLUMNS, entriesBetween } from './entries';
 import {
   chainHash,
   contentDigest,
   dailySummaries,
   EntryKind,
+  entryContext,
   kindLabel,
   stateAfter,
   StoredEntry,
@@ -30,11 +32,14 @@ export class TimeService {
     e: {
       kind: EntryKind;
       occurredAt: Date;
-      source: 'clock' | 'manual' | 'import';
+      source: 'clock' | 'manual' | 'import' | 'offline';
       voidsEntryId?: string | null;
       reason?: string | null;
       deviceTime?: Date | null;
       idempotencyKey?: string | null;
+      channel?: 'web' | 'kiosk' | 'offline' | 'import';
+      kioskDeviceId?: string | null;
+      position?: { latitude: number; longitude: number; accuracyM: number | null; insideZone: boolean | null } | null;
     },
   ): Promise<StoredEntry> {
     const emp = await tx.one<{ time_chain_head: string | null; time_chain_seq: string }>(
@@ -54,12 +59,21 @@ export class TimeService {
       voidsEntryId: e.voidsEntryId ?? null,
       reason: e.reason ?? null,
       createdBy,
+      context: entryContext({
+        channel: e.channel ?? null,
+        kiosk_device_id: e.kioskDeviceId ?? null,
+        latitude: e.position?.latitude ?? null,
+        longitude: e.position?.longitude ?? null,
+        accuracy_m: e.position?.accuracyM ?? null,
+        inside_zone: e.position?.insideZone ?? null,
+      }),
     });
     const hash = chainHash(emp.time_chain_head, digest);
     const row = await tx.one<StoredEntry>(
       `INSERT INTO time_entry (tenant_id, employment_id, seq, kind, occurred_at, recorded_at, device_time, source,
-                               voids_entry_id, reason, created_by, idempotency_key, content_digest, prev_hash, hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING ${ENTRY_COLUMNS}`,
+                               voids_entry_id, reason, created_by, idempotency_key, content_digest, prev_hash, hash,
+                               channel, kiosk_device_id, latitude, longitude, accuracy_m, inside_zone)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING ${ENTRY_COLUMNS}`,
       [
         tx.tenantId,
         employmentId,
@@ -76,6 +90,12 @@ export class TimeService {
         digest,
         emp.time_chain_head,
         hash,
+        e.channel ?? null,
+        e.kioskDeviceId ?? null,
+        e.position?.latitude ?? null,
+        e.position?.longitude ?? null,
+        e.position?.accuracyM ?? null,
+        e.position?.insideZone ?? null,
       ],
     );
     await tx.query('UPDATE employment SET time_chain_head = $2, time_chain_seq = $3 WHERE id = $1', [employmentId, hash, seq]);
@@ -89,7 +109,7 @@ export class TimeService {
   async importEntry(tx: Tx, employmentId: string, e: { kind: Exclude<EntryKind, 'void'>; occurredAt: Date; reason: string; idempotencyKey: string }) {
     const existing = await tx.maybeOne('SELECT id FROM time_entry WHERE idempotency_key = $1', [e.idempotencyKey]);
     if (existing) return null;
-    return this.append(tx, employmentId, { kind: e.kind, occurredAt: e.occurredAt, source: 'import', reason: e.reason, idempotencyKey: e.idempotencyKey });
+    return this.append(tx, employmentId, { kind: e.kind, occurredAt: e.occurredAt, source: 'import', reason: e.reason, idempotencyKey: e.idempotencyKey, channel: 'import' });
   }
 
   /** Estado actual: se mira hacia atrás hasta 36 h para encontrar la última entrada abierta. */
@@ -117,7 +137,14 @@ export class TimeService {
   async clock(
     tx: Tx,
     actor: Actor,
-    input: { employmentId?: string; kind?: Exclude<EntryKind, 'void'>; idempotencyKey: string; deviceTime?: string },
+    input: {
+      employmentId?: string;
+      kind?: Exclude<EntryKind, 'void'>;
+      idempotencyKey: string;
+      deviceTime?: string;
+      location?: { latitude: number; longitude: number; accuracy?: number };
+      offlineAt?: string;
+    },
   ) {
     const existing = await tx.maybeOne(`SELECT ${ENTRY_COLUMNS} FROM time_entry WHERE idempotency_key = $1`, [input.idempotencyKey]);
     if (existing) {
@@ -128,6 +155,28 @@ export class TimeService {
     const emp = await tx.one('SELECT start_date::text, end_date::text FROM employment WHERE id = $1', [employmentId]);
     const today = new Date().toISOString().slice(0, 10);
     if (emp.start_date > today) throw new BadRequestException('Tu relación laboral aún no ha empezado');
+
+    const position = await this.checkZone(tx, employmentId, input.location);
+
+    // Fichaje hecho sin conexión y enviado después: vale la hora del dispositivo, acotada.
+    if (input.offlineAt) {
+      const at = new Date(input.offlineAt);
+      const now = Date.now();
+      if (isNaN(at.getTime()) || at.getTime() > now + 120_000) throw new BadRequestException('Hora del fichaje sin conexión no válida');
+      if (at.getTime() < now - 72 * 3600_000) throw new BadRequestException('Los fichajes sin conexión deben enviarse en 72 horas; añádelo a mano con su motivo');
+      if (!input.kind) throw new BadRequestException('Indica el tipo de fichaje');
+      const entry = await this.append(tx, employmentId, {
+        kind: input.kind,
+        occurredAt: at,
+        source: 'offline',
+        reason: 'Fichaje sin conexión, enviado al recuperarla',
+        deviceTime: at,
+        idempotencyKey: input.idempotencyKey,
+        channel: 'offline',
+        position,
+      });
+      return { entry, replayed: false };
+    }
 
     const { state } = await this.currentState(tx, employmentId);
     const kind = input.kind ?? (state === 'out' ? 'in' : 'out');
@@ -140,8 +189,41 @@ export class TimeService {
       source: 'clock',
       deviceTime: input.deviceTime ? new Date(input.deviceTime) : null,
       idempotencyKey: input.idempotencyKey,
+      channel: 'web',
+      position,
     });
     return { entry, replayed: false };
+  }
+
+  /**
+   * Comprueba la zona de fichaje del centro. Con «registrar» guarda la posición; con
+   * «exigir» rechaza fichar fuera (salvo personas con teletrabajo permitido). Con la zona
+   * desactivada no se guarda ninguna posición.
+   */
+  async checkZone(tx: Tx, employmentId: string, location?: { latitude: number; longitude: number; accuracy?: number }) {
+    const z = await tx.one(
+      `SELECT wc.latitude, wc.longitude, wc.radius_m, coalesce(wc.geo_policy, 'off') AS policy, e.remote_allowed
+         FROM employment e LEFT JOIN work_center wc ON wc.id = e.work_center_id WHERE e.id = $1`,
+      [employmentId],
+    );
+    if (z.policy === 'off' || z.latitude === null || z.radius_m === null) return null;
+    if (!location) {
+      if (z.policy === 'require' && !z.remote_allowed) throw new ForbiddenException('Tu centro exige fichar con la ubicación activada');
+      return null;
+    }
+    const inside = insideZone({ lat: z.latitude, lng: z.longitude, radius: z.radius_m }, { lat: location.latitude, lng: location.longitude, accuracy: location.accuracy });
+    if (!inside && z.policy === 'require' && !z.remote_allowed) throw new ForbiddenException('Estás fuera de la zona de fichaje de tu centro');
+    return { latitude: location.latitude, longitude: location.longitude, accuracyM: location.accuracy ?? null, insideZone: inside };
+  }
+
+  /** Fichaje desde un kiosco: la persona ya se ha identificado (PIN o QR). */
+  async kioskClock(tx: Tx, employmentId: string, deviceId: string, idempotencyKey: string) {
+    const existing = await tx.maybeOne(`SELECT ${ENTRY_COLUMNS} FROM time_entry WHERE idempotency_key = $1`, [idempotencyKey]);
+    if (existing) return existing as StoredEntry;
+    const { state } = await this.currentState(tx, employmentId);
+    // En el kiosco se alterna: entrada si está fuera y salida en otro caso.
+    const kind = state === 'out' ? 'in' : 'out';
+    return this.append(tx, employmentId, { kind, occurredAt: new Date(), source: 'clock', idempotencyKey, channel: 'kiosk', kioskDeviceId: deviceId });
   }
 
   /** Fichaje olvidado o corrección: queda marcado como manual, con motivo y autor. */

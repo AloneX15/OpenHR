@@ -36,6 +36,7 @@ export interface EmployeeFormValue {
   hourBankStart: string;
   sex: string;
   professionalGroup: string;
+  remoteAllowed: boolean;
 }
 
 export function emptyEmployee(companyId = ''): EmployeeFormValue {
@@ -60,6 +61,7 @@ export function emptyEmployee(companyId = ''): EmployeeFormValue {
     hourBankStart: '',
     sex: '',
     professionalGroup: '',
+    remoteAllowed: false,
   };
 }
 
@@ -85,6 +87,7 @@ export function fromEmployee(e: any): EmployeeFormValue {
     hourBankStart: e.hour_bank_start ?? '',
     sex: e.sex ?? '',
     professionalGroup: e.professional_group ?? '',
+    remoteAllowed: Boolean(e.remote_allowed),
   };
 }
 
@@ -137,7 +140,7 @@ export function EmployeeForm({
       await onSubmit(
         mode === 'create'
           ? { ...common, companyId, startDate: f.startDate, createAccount: f.createAccount }
-          : { ...common, hourBankEnabled: f.hourBankEnabled, hourBankStart: f.hourBankEnabled ? f.hourBankStart || null : null },
+          : { ...common, hourBankEnabled: f.hourBankEnabled, hourBankStart: f.hourBankEnabled ? f.hourBankStart || null : null, remoteAllowed: f.remoteAllowed },
       );
     });
   };
@@ -264,6 +267,10 @@ export function EmployeeForm({
           <label className="check" style={{ margin: 0 }}>
             <input type="checkbox" checked={f.hourBankEnabled} onChange={(e) => setF({ ...f, hourBankEnabled: e.target.checked })} />
             Bolsa de horas activada
+          </label>
+          <label className="check" style={{ margin: 0 }}>
+            <input type="checkbox" checked={f.remoteAllowed} onChange={(e) => setF({ ...f, remoteAllowed: e.target.checked })} />
+            Puede fichar fuera de la zona (teletrabajo)
           </label>
           {f.hourBankEnabled && (
             <input type="date" aria-label="Bolsa de horas desde" value={f.hourBankStart} onChange={(e) => setF({ ...f, hourBankStart: e.target.value })} style={{ width: 'auto' }} />

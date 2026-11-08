@@ -1024,3 +1024,64 @@ describe('inicio de sesión con OpenID Connect (Microsoft 365)', () => {
     await adminAgent.put('/api/auth/oidc/config').send({ issuer, clientId: 'cliente-openhr', domains: ['demo.test'], enforce: false, enabled: false }).expect(200);
   });
 });
+
+describe('kiosco, geolocalización y fichaje sin conexión', () => {
+  let token: string;
+  const key = () => `k-${Math.random().toString(36).slice(2)}`;
+
+  it('el kiosco ficha con código y PIN o con el QR personal, alternando entrada y salida', async () => {
+    await luis.post('/api/kiosk/devices').send({ workCenterId: centerId, name: 'Tableta' }).expect(403);
+    token = (await adminAgent.post('/api/kiosk/devices').send({ workCenterId: centerId, name: 'Tableta recepción' }).expect(201)).body.token;
+    await request(server).get('/api/kiosk/device').set('x-kiosk-token', 'otro').expect(401);
+    expect((await request(server).get('/api/kiosk/device').set('x-kiosk-token', token).expect(200)).body).toMatchObject({ name: 'Tableta recepción', company_name: 'Demo SL' });
+
+    await luis.put('/api/kiosk/pin').send({ pin: '1234' }).expect(400); // demasiado obvio
+    const { code } = (await luis.put('/api/kiosk/pin').send({ pin: '1357' }).expect(200)).body;
+    expect(code).toMatch(/^\d{6}$/);
+    const me = (await luis.get('/api/org/employees/' + luisEmp)).body;
+    expect(me.kiosk_pin_hash).toBeUndefined();
+
+    await request(server).post('/api/kiosk/device/clock').set('x-kiosk-token', token).send({ code, pin: '9999', idempotencyKey: key() }).expect(401);
+    const first = (await request(server).post('/api/kiosk/device/clock').set('x-kiosk-token', token).send({ code, pin: '1357', idempotencyKey: key() }).expect(201)).body;
+    expect(first.name).toBe('Luis');
+    const qr = (await luis.get('/api/kiosk/qr').expect(200)).body.token;
+    const second = (await request(server).post('/api/kiosk/device/clock').set('x-kiosk-token', token).send({ qr, idempotencyKey: key() }).expect(201)).body;
+    expect(new Set([first.kind, second.kind])).toEqual(new Set(['in', 'out']));
+    await request(server).post('/api/kiosk/device/clock').set('x-kiosk-token', token).send({ qr: 'falso', idempotencyKey: key() }).expect(401);
+    const today = (await luis.get(`/api/time/employments/${luisEmp}?from=${new Date().toISOString().slice(0, 10)}&to=${new Date().toISOString().slice(0, 10)}`)).body;
+    expect(today.entries.length).toBeGreaterThanOrEqual(2);
+    expect((await luis.get(`/api/time/employments/${luisEmp}/verify`)).body.ok).toBe(true);
+  });
+
+  it('con la zona exigida solo se ficha dentro, salvo teletrabajo permitido', async () => {
+    await adminAgent.patch(`/api/org/work-centers/${centerId}`).send({ geoPolicy: 'require' }).expect(400);
+    await adminAgent.patch(`/api/org/work-centers/${centerId}`).send({ latitude: 40.4169, longitude: -3.7035, radiusM: 100, geoPolicy: 'require' }).expect(200);
+    const status = (await luis.get('/api/time/status')).body[0].state;
+    const kind = status === 'out' ? 'in' : 'out';
+    await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind }).expect(403);
+    await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind, location: { latitude: 40.43, longitude: -3.69, accuracy: 10 } }).expect(403);
+    const ok = await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind, location: { latitude: 40.41691, longitude: -3.70351, accuracy: 15 } }).expect(201);
+    expect(ok.body.entry).toMatchObject({ channel: 'web', inside_zone: true });
+    await adminAgent.patch(`/api/org/employees/${luisEmp}`).send({ remoteAllowed: true }).expect(200);
+    const back = kind === 'in' ? 'out' : 'in';
+    const remote = await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind: back, location: { latitude: 41.39, longitude: 2.17 } }).expect(201);
+    expect(remote.body.entry.inside_zone).toBe(false);
+    await adminAgent.patch(`/api/org/work-centers/${centerId}`).send({ geoPolicy: 'off' }).expect(200);
+    await adminAgent.patch(`/api/org/employees/${luisEmp}`).send({ remoteAllowed: false }).expect(200);
+    expect((await luis.get(`/api/time/employments/${luisEmp}/verify`)).body.ok).toBe(true);
+  });
+
+  it('los fichajes sin conexión se envían después con su hora, hasta 72 horas', async () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
+    const r = await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind: 'in', offlineAt: twoHoursAgo }).expect(201);
+    expect(r.body.entry).toMatchObject({ source: 'offline', channel: 'offline' });
+    expect(new Date(r.body.entry.occurred_at).toISOString()).toBe(twoHoursAgo);
+    const k = key();
+    await luis.post('/api/time/clock').send({ idempotencyKey: k, kind: 'out', offlineAt: new Date(Date.now() - 3600_000).toISOString() }).expect(201);
+    const replay = await luis.post('/api/time/clock').send({ idempotencyKey: k, kind: 'out', offlineAt: new Date(Date.now() - 3600_000).toISOString() }).expect(201);
+    expect(replay.body.replayed).toBe(true);
+    await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind: 'in', offlineAt: new Date(Date.now() - 4 * 86400_000).toISOString() }).expect(400);
+    await luis.post('/api/time/clock').send({ idempotencyKey: key(), kind: 'in', offlineAt: new Date(Date.now() + 3600_000).toISOString() }).expect(400);
+    expect((await luis.get(`/api/time/employments/${luisEmp}/verify`)).body.ok).toBe(true);
+  });
+});

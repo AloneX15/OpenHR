@@ -45,6 +45,10 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 ### Datos salariales
 - La retribución y el sexo solo los ve RR. HH. de la sociedad (el sexo, también la propia persona); el responsable no. La auditoría registra que hubo un cambio y quién lo hizo, sin los importes.
 
+### Kiosco y ubicación
+- El kiosco se autentica con un token de dispositivo (solo se guarda su hash) y se puede desactivar. Cada persona se identifica con código y PIN (bcrypt, 5 intentos cada 15 minutos) o con un QR firmado que caduca en 60 segundos. La pantalla solo muestra el nombre de pila.
+- La ubicación se pide únicamente al fichar y solo si el centro lo tiene activado; nunca se hace seguimiento. Con la zona desactivada no se guarda ninguna posición. `Permissions-Policy` limita cámara y ubicación al propio origen.
+
 ### Canal de denuncias
 - Accesible sin cuenta en `/canal/<token>`; el token es aleatorio y se puede cambiar. Anónimo si se quiere: no se guarda la IP ni datos del informante, que se identifica solo con un código de seguimiento de unos 100 bits del que se guarda el hash.
 - Contenido cifrado en la base de datos. Solo lo ve quien tiene el rol de Responsable del Sistema; administración y RR. HH. no, salvo que se les asigne (queda en la auditoría, como cada consulta de una comunicación).

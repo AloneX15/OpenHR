@@ -91,7 +91,10 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | Método y ruta | Quién | Descripción |
 | --- | --- | --- |
 | `GET /time/status` | S | Estado (`out`, `working`, `break`) de cada relación laboral propia |
-| `POST /time/clock` | E | `{ idempotencyKey, kind?, employmentId?, deviceTime? }`. Sin `kind` alterna entrada/salida. Repetir la clave devuelve el mismo fichaje (`replayed: true`) |
+| `POST /time/clock` | E | `{ idempotencyKey, kind?, employmentId?, deviceTime?, location?: { latitude, longitude, accuracy }, offlineAt? }`. Con `offlineAt` (fichaje hecho sin conexión, hasta 72 h antes) vale esa hora y queda como `offline`. Si el centro exige zona, se rechaza fuera de ella salvo teletrabajo permitido. Sin `kind` alterna entrada/salida. Repetir la clave devuelve el mismo fichaje (`replayed: true`) |
+| `GET /kiosk/devices`, `POST /kiosk/devices`, `DELETE /kiosk/devices/:id` | H | Kioscos de un centro; al crearlo se devuelve el token una sola vez |
+| `GET /kiosk/me`, `PUT /kiosk/pin`, `GET /kiosk/qr` | E | Mi código y PIN del kiosco; QR personal firmado que caduca en 60 s |
+| `GET /kiosk/device`, `POST /kiosk/device/clock` | Dispositivo (cabecera `x-kiosk-token`) | Información del kiosco; fichar con `{ code, pin }` o `{ qr }` (alterna entrada y salida). 5 intentos de PIN por código cada 15 min |
 | `POST /time/entries` | E / H | Fichaje olvidado: `{ employmentId, kind, date, time, reason }` (hora local del centro, no futura) |
 | `POST /time/entries/:id/void` | E / H | Anula un fichaje: `{ reason }` |
 | `GET /time/employments/:id?from=&to=` | E / R / H | Fichajes y resumen diario (trabajado, pausas, teórico, festivo, ausencia, incidencias). Máximo un año |
