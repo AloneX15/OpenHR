@@ -19,6 +19,23 @@ export const config = {
   encryptionKey: process.env.ENCRYPTION_KEY ?? '',
   publicUrl: process.env.PUBLIC_URL ?? 'http://localhost:3000',
   storageDir: process.env.STORAGE_DIR ?? './storage',
+  storage: {
+    driver: (process.env.STORAGE_DRIVER ?? 'local') as 'local' | 's3' | 'azure',
+    localDir: process.env.STORAGE_DIR ?? './storage',
+    s3: {
+      bucket: process.env.S3_BUCKET ?? '',
+      region: process.env.S3_REGION ?? 'eu-west-1',
+      endpoint: process.env.S3_ENDPOINT || undefined,
+      accessKeyId: process.env.S3_ACCESS_KEY_ID || undefined,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || undefined,
+      forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
+    },
+    azure: {
+      container: process.env.AZURE_STORAGE_CONTAINER ?? 'openhr',
+      connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING || undefined,
+      account: process.env.AZURE_STORAGE_ACCOUNT || undefined,
+    },
+  },
   smtp: {
     host: process.env.SMTP_HOST ?? '',
     port: Number(process.env.SMTP_PORT ?? 1025),

@@ -1,0 +1,19 @@
+# Copia a terraform.tfvars y rellena. No subas terraform.tfvars a Git.
+subscription_id = "00000000-0000-0000-0000-000000000000"
+name            = "openhr"
+location        = "spaincentral"
+
+image_api = "ghcr.io/alonex15/openhr-api:latest"
+image_web = "ghcr.io/alonex15/openhr-web:latest"
+# Si las imágenes son privadas en GitHub:
+# registry_server   = "ghcr.io"
+# registry_username = "alonex15"
+# registry_password = "<token con permiso read:packages>"
+
+# public_url = "https://rrhh.ejemplo.com"
+
+smtp_host     = "smtp.ejemplo.com"
+smtp_port     = 587
+smtp_user     = "no-reply@ejemplo.com"
+smtp_password = "<contraseña SMTP>"
+smtp_from     = "OpenHR <no-reply@ejemplo.com>"

@@ -20,7 +20,7 @@ flowchart LR
 | `apps/api` | NestJS 11, `pg`, zod, pdf-lib, pdfjs-dist, nodemailer | Reglas de negocio, permisos, PDFs, exportaciones, outbox de emails |
 | `db` | PostgreSQL 17 | Datos, aislamiento por RLS, inmutabilidad de fichajes |
 | `migrate` | La imagen de la API con `node dist/db/migrate.js` | Crea el rol de aplicación y aplica migraciones con el rol propietario |
-| `storage` | Volumen de Docker | Ficheros (PDF de nóminas, documentos). Detrás de la interfaz `StorageAdapter` para añadir S3 o Azure Blob |
+| `storage` | Disco, S3 o Azure Blob | Ficheros (nóminas, documentos, firmas). Adaptadores en `documents/storage-adapters.ts`, elegidos con `STORAGE_DRIVER`; cada fichero guarda su SHA-256 y se comprueba al leerlo |
 | `mailpit` | SMTP de pruebas | Captura los emails en desarrollo |
 
 ## Módulos de la API

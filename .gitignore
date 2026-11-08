@@ -9,3 +9,10 @@ coverage/
 .DS_Store
 .test-storage/
 next-env.d.ts
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+.terraform.lock.hcl.bak

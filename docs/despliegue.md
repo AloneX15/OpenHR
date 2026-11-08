@@ -1,6 +1,6 @@
 # Despliegue
 
-El MVP se despliega con **Docker Compose** en un único servidor. La nube (Azure) llegará con la V1 comercial.
+Hay dos formas: **Docker Compose** en un servidor (esta guía) o **Azure** con Terraform ([despliegue en Azure](despliegue-azure.md)).
 
 ## Requisitos
 
@@ -48,7 +48,11 @@ Abre `PUBLIC_URL` (por defecto <http://localhost:3000>), completa la **configura
 | `SECURE_COOKIES` | No | `true`/`false`. Por defecto, `true` si `PUBLIC_URL` es HTTPS |
 | `SESSION_HOURS` | No (12) | Duración de la sesión |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | En producción | Servidor de correo. Por defecto, Mailpit |
-| `OUTBOX_WORKER` | No (`true`) | Procesar el envío de emails en la API |
+| `OUTBOX_WORKER` | No (`true`) | Procesar en la API el envío de emails y la conservación diaria |
+| `STORAGE_DRIVER` | No (`local`) | Dónde guardar los ficheros: `local` (volumen), `s3` o `azure` |
+| `STORAGE_DIR` | No | Carpeta para `local` |
+| `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE` | Con `s3` | Amazon S3 o compatible (MinIO, R2…). Sin claves se usa la cadena de credenciales estándar |
+| `AZURE_STORAGE_CONTAINER`, `AZURE_STORAGE_CONNECTION_STRING` o `AZURE_STORAGE_ACCOUNT` | Con `azure` | Con `AZURE_STORAGE_ACCOUNT` se usa la identidad gestionada (`AZURE_CLIENT_ID`) |
 | `WEB_PORT`, `DB_PORT` | No (3000, 5433) | Puertos publicados en el host |
 
 ## Producción

@@ -32,7 +32,7 @@ La web en <http://localhost:3000> reenvía `/api` a `http://localhost:3001` (var
 ## Tests
 
 ```bash
-docker compose -f docker-compose.test.yml up -d   # PostgreSQL efímero en el puerto 5434
+docker compose -f docker-compose.test.yml up -d   # PostgreSQL (5434), S3Mock (9100) y Azurite (10000)
 npm test
 ```
 

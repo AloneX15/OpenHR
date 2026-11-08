@@ -15,3 +15,17 @@ services:
       - "127.0.0.1:5434:5432"
     tmpfs:
       - /var/lib/postgresql/data
+
+  # Almacenamiento compatible con S3 y emulador de Azure Blob para los tests de adaptadores.
+  s3:
+    image: adobe/s3mock:latest
+    environment:
+      initialBuckets: openhr-test
+    ports:
+      - "127.0.0.1:9100:9090"
+
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:latest
+    command: azurite-blob --blobHost 0.0.0.0 --skipApiVersionCheck --loose
+    ports:
+      - "127.0.0.1:10000:10000"

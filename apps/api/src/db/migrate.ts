@@ -16,11 +16,19 @@ export async function runMigrations(ownerUrl: string, appPassword: string, log =
     await client.query('SELECT pg_advisory_lock(hashtext($1))', ['openhr_migrate']);
     const exists = await client.query("SELECT 1 FROM pg_roles WHERE rolname = 'openhr_app'");
     const pwd = (await client.query('SELECT quote_literal($1) AS q', [appPassword])).rows[0].q;
+    // En PostgreSQL gestionado (Azure, RDS…) el propietario no es superusuario y no puede
+    // tocar los atributos SUPERUSER/BYPASSRLS; los valores por defecto ya son «NO».
+    const { rows: me } = await client.query('SELECT rolsuper FROM pg_roles WHERE rolname = current_user');
+    const attrs = me[0]?.rolsuper ? 'LOGIN NOSUPERUSER NOBYPASSRLS' : 'LOGIN';
     if (exists.rowCount === 0) {
-      await client.query(`CREATE ROLE openhr_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD ${pwd}`);
+      await client.query(`CREATE ROLE openhr_app ${attrs} PASSWORD ${pwd}`);
       log('Rol openhr_app creado');
     } else {
-      await client.query(`ALTER ROLE openhr_app WITH LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD ${pwd}`);
+      await client.query(`ALTER ROLE openhr_app WITH ${attrs} PASSWORD ${pwd}`);
+    }
+    const { rows: check } = await client.query("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'openhr_app'");
+    if (check[0].rolsuper || check[0].rolbypassrls) {
+      throw new Error('El rol openhr_app no puede ser superusuario ni saltarse RLS: corrígelo antes de continuar');
     }
     await client.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
       name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())`);
