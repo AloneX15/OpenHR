@@ -1,0 +1,32 @@
+import { randomBytes } from 'node:crypto';
+
+function required(name: string, fallbackForDev?: string): string {
+  const value = process.env[name];
+  if (value) return value;
+  if (fallbackForDev !== undefined && process.env.NODE_ENV !== 'production') return fallbackForDev;
+  throw new Error(`Falta la variable de entorno ${name}`);
+}
+
+const devSecret = randomBytes(32).toString('hex');
+
+export const config = {
+  port: Number(process.env.PORT ?? 3001),
+  databaseUrl: required('DATABASE_URL', 'postgres://openhr_app:openhr_app@localhost:5432/openhr'),
+  migrationDatabaseUrl: process.env.MIGRATION_DATABASE_URL ?? '',
+  appDbPassword: process.env.OPENHR_APP_DB_PASSWORD ?? 'openhr_app',
+  jwtSecret: required('JWT_SECRET', devSecret),
+  // 32 bytes en base64. Si falta en desarrollo se deriva del JWT_SECRET.
+  encryptionKey: process.env.ENCRYPTION_KEY ?? '',
+  publicUrl: process.env.PUBLIC_URL ?? 'http://localhost:3000',
+  storageDir: process.env.STORAGE_DIR ?? './storage',
+  smtp: {
+    host: process.env.SMTP_HOST ?? '',
+    port: Number(process.env.SMTP_PORT ?? 1025),
+    user: process.env.SMTP_USER ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
+    from: process.env.SMTP_FROM ?? 'OpenHR <no-reply@openhr.local>',
+  },
+  secureCookies: process.env.SECURE_COOKIES === 'true',
+  sessionHours: Number(process.env.SESSION_HOURS ?? 12),
+  outboxWorker: process.env.OUTBOX_WORKER !== 'false',
+};
