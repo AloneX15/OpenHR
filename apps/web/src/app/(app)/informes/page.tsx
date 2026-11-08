@@ -1,6 +1,7 @@
 'use client';
 
 import { IconButton } from '@/components/icons';
+import { PayRegisterCard } from '@/components/Pay';
 import { useState } from 'react';
 import { Card, Empty, ErrorBox, Field, Notice, PageHeader, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
@@ -112,6 +113,9 @@ export default function ReportsPage() {
             <Empty>Aún no hay sellos.</Empty>
           )}
         </Card>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <PayRegisterCard companyId={company} />
       </div>
     </>
   );

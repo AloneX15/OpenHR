@@ -41,6 +41,9 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - Fichajes **append-only** (permisos y triggers), correcciones como eventos con motivo y autor.
 - **Cadena de hashes** por relación laboral y **sellos** enviados por email fuera del sistema ([ADR 0002](adr/0002-time-entry-hash-chain.md)).
 
+### Datos salariales
+- La retribución y el sexo solo los ve RR. HH. de la sociedad (el sexo, también la propia persona); el responsable no. La auditoría registra que hubo un cambio y quién lo hizo, sin los importes.
+
 ### Firma electrónica
 - Es una **firma electrónica simple** (art. 3.10 del Reglamento eIDAS): tiene validez jurídica y su fuerza probatoria depende de las evidencias. Para contratos de alto riesgo puede convenir un proveedor de firma avanzada o cualificada (pendiente como adaptador).
 - Doble factor: sesión autenticada y código de un solo uso enviado al email del firmante (guardado como hash, 10 minutos, 5 intentos; los fallos quedan registrados aunque la petición falle).

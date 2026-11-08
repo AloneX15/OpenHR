@@ -46,6 +46,8 @@
 - **Organización → Festivos**: añade los autonómicos y locales de cada centro. Los nacionales se cargan solos.
 - **Equipo → persona → Ficha → Editar**: activar la bolsa de horas y desde qué fecha. En **Control horario**, *Registrar movimiento* para el saldo inicial o las horas pagadas en nómina.
 - **Anuncios, Políticas y Firmas**: publicar anuncios, subir políticas (o nuevas versiones) y ver quién falta por aceptarlas, y pedir firmas de documentos PDF.
+- **Equipo → persona → Retribución**: salario base, complementos y percepciones extrasalariales anuales, con su fecha. Rellena también el sexo y el grupo profesional en la ficha.
+- **Informes → Registro retributivo**: medias y medianas por sexo y grupo, con las brechas de al menos el 25 % marcadas; se descarga en CSV.
 - **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
 
 ## Administración

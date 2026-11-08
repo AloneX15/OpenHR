@@ -6,6 +6,7 @@ import { FormEvent, useState } from 'react';
 import { EmployeeForm, fromEmployee } from '@/components/EmployeeForm';
 import { RequestModal } from '@/components/RequestModal';
 import { HourBankCard } from '@/components/HourBankCard';
+import { CompensationCard } from '@/components/Pay';
 import { CustomFieldsCard, EmployeeChecklists, TransferModal } from '@/components/Lifecycle';
 import { TimeSheet } from '@/components/TimeSheet';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
@@ -13,7 +14,7 @@ import { api, download } from '@/lib/api';
 import { CATEGORY_LABEL, dateTime, dayLabel, STATUS_LABEL, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'ficha' | 'horario' | 'ausencias' | 'documentos' | 'checklists';
+type Tab = 'ficha' | 'horario' | 'ausencias' | 'documentos' | 'checklists' | 'retribucion';
 
 export default function EmployeePage() {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +44,7 @@ export default function EmployeePage() {
           { id: 'horario', label: 'Control horario' },
           { id: 'ausencias', label: 'Ausencias' },
           { id: 'checklists', label: 'Checklists' },
-          ...(isHr ? [{ id: 'documentos' as Tab, label: 'Documentos' }] : []),
+          ...(isHr ? [{ id: 'documentos' as Tab, label: 'Documentos' }, { id: 'retribucion' as Tab, label: 'Retribución' }] : []),
         ]}
       />
       {tab === 'ficha' && <Profile e={e} isHr={isHr} isAdmin={me.isAdmin} reload={emp.reload} />}
@@ -56,6 +57,7 @@ export default function EmployeePage() {
       {tab === 'ausencias' && <EmployeeAbsences employmentId={id} isHr={isHr} />}
       {tab === 'documentos' && <EmployeeDocuments personId={e.person_id} companyId={e.company_id} />}
       {tab === 'checklists' && <EmployeeChecklists employmentId={id} isHr={isHr} companyId={e.company_id} />}
+      {tab === 'retribucion' && isHr && <CompensationCard employmentId={id} />}
     </>
   );
 }
@@ -95,6 +97,8 @@ function Profile({ e, isHr, isAdmin, reload }: { e: any; isHr: boolean; isAdmin:
     ['Departamento', e.department_name],
     ['Responsable', e.manager_name],
     ['Tipo de contrato', e.contract_type],
+    ['Grupo profesional', e.professional_group],
+    ...(e.sex !== undefined ? ([['Sexo', { female: 'Mujer', male: 'Hombre', other: 'Otro' }[e.sex as string] ?? 'No consta']] as [string, any][]) : []),
     ['Nº de empleado', e.employee_number],
     ['Alta', dayLabel(e.start_date) + ` ${e.start_date.slice(0, 4)}`],
     ['Jornada', `${weekly} h/semana`],

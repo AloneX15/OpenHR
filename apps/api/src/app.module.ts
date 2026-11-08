@@ -9,6 +9,7 @@ import { DocumentsModule } from './documents/documents.module';
 import { ExportsModule } from './exports/exports.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { OrgModule } from './org/org.module';
+import { PayModule } from './pay/pay.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { TimeModule } from './time/time.module';
 
@@ -25,7 +26,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule],
+  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule],
   controllers: [HealthController],
 })
 export class AppModule {}

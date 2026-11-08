@@ -327,3 +327,5 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 
 .announcement-body { white-space: pre-wrap; }
 .card.unread { border-left: 3px solid var(--accent-strong); }
+
+.total-row td { font-weight: 600; border-bottom: 2px solid var(--border); }

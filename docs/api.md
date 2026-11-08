@@ -156,6 +156,18 @@ Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `s
 | `POST /payslips/batches/:id/publish` | H | Exige todas las páginas revisadas. Une las páginas de cada persona y la avisa |
 | `POST /payslips/batches/:id/discard` | H | |
 
+## Retribución y registro retributivo
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /pay/compensation/:employmentId` | H | Historial de retribución |
+| `POST /pay/compensation` | H | `{ employmentId, effectiveFrom, baseAnnual, complementsAnnual?, extraSalaryAnnual?, note? }` (sustituye si coincide la fecha) |
+| `DELETE /pay/compensation/:id` | H | |
+| `GET /pay/register?companyId=&year=&groupBy=` | H | Registro retributivo: por grupo (`professional_group` o `job_title`) y en total, `women` y `men` con `n`, media y mediana de cada concepto (`base`, `complements`, `extraSalary`, `total`), brechas en % y `flagged` si alcanzan el 25 % |
+| `GET /pay/register.csv?…` | H | El mismo registro en CSV |
+
+Cálculo: personas con relación laboral en algún momento del año, con la retribución vigente a 31 de diciembre (o a su baja), equiparada a jornada completa (importe × jornada completa ÷ jornada real). Brecha = (hombres − mujeres) ÷ hombres.
+
 ## Anuncios, políticas y firma
 
 | Método y ruta | Quién | Descripción |

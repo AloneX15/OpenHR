@@ -34,6 +34,8 @@ export interface EmployeeFormValue {
   createAccount: boolean;
   hourBankEnabled: boolean;
   hourBankStart: string;
+  sex: string;
+  professionalGroup: string;
 }
 
 export function emptyEmployee(companyId = ''): EmployeeFormValue {
@@ -56,6 +58,8 @@ export function emptyEmployee(companyId = ''): EmployeeFormValue {
     createAccount: true,
     hourBankEnabled: false,
     hourBankStart: '',
+    sex: '',
+    professionalGroup: '',
   };
 }
 
@@ -79,6 +83,8 @@ export function fromEmployee(e: any): EmployeeFormValue {
     createAccount: false,
     hourBankEnabled: Boolean(e.hour_bank_enabled),
     hourBankStart: e.hour_bank_start ?? '',
+    sex: e.sex ?? '',
+    professionalGroup: e.professional_group ?? '',
   };
 }
 
@@ -125,6 +131,8 @@ export function EmployeeForm({
         schedule,
         weeklyMinutes: Math.round(weekly * 60),
         vacationDaysPerYear: Number(f.vacationDaysPerYear),
+        sex: f.sex || null,
+        professionalGroup: f.professionalGroup || null,
       };
       await onSubmit(
         mode === 'create'
@@ -153,6 +161,14 @@ export function EmployeeForm({
         </Field>
         <Field label="Teléfono">
           <input value={f.phone} onChange={set('phone')} />
+        </Field>
+        <Field label="Sexo" hint="Solo para el registro retributivo; lo ven RR. HH. y la persona.">
+          <select value={f.sex} onChange={set('sex')}>
+            <option value="">No consta</option>
+            <option value="female">Mujer</option>
+            <option value="male">Hombre</option>
+            <option value="other">Otro</option>
+          </select>
         </Field>
       </div>
       <h3>Relación laboral</h3>
@@ -210,6 +226,9 @@ export function EmployeeForm({
             <option value="formación" />
             <option value="prácticas" />
           </datalist>
+        </Field>
+        <Field label="Grupo profesional" hint="Según el convenio (grupo, categoría o nivel).">
+          <input value={f.professionalGroup} onChange={set('professionalGroup')} />
         </Field>
         <Field label="Nº de empleado">
           <input value={f.employeeNumber} onChange={set('employeeNumber')} />

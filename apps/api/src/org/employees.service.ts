@@ -36,6 +36,8 @@ export const employeeInput = z.object({
   weeklyMinutes: z.number().int().min(0).max(60 * 60).optional(),
   schedule: zSchedule.optional(),
   vacationDaysPerYear: z.number().min(0).max(60).optional(),
+  sex: z.enum(['female', 'male', 'other']).nullish(),
+  professionalGroup: z.string().trim().max(100).nullish(),
   createAccount: z.boolean().default(true),
 });
 export type EmployeeInput = z.infer<typeof employeeInput>;
@@ -57,6 +59,8 @@ export const employeeUpdate = z.object({
   vacationDaysPerYear: z.number().min(0).max(60).optional(),
   hourBankEnabled: z.boolean().optional(),
   hourBankStart: zDate.nullish(),
+  sex: z.enum(['female', 'male', 'other']).nullish(),
+  professionalGroup: z.string().trim().max(100).nullish(),
 });
 
 /** Jornada semanal repartida de lunes a viernes. */
@@ -117,7 +121,7 @@ export class EmployeesService {
   async get(tx: Tx, employmentId: string, access: EmploymentAccess) {
     const includeSensitive = access === 'self' || access === 'hr';
     const row = await tx.maybeOne(
-      `SELECT e.*, p.first_name, p.last_name, p.email, p.phone, p.national_id, p.birth_date,
+      `SELECT e.*, p.first_name, p.last_name, p.email, p.phone, p.national_id, p.birth_date, p.sex,
               p.custom_values AS person_custom_values,
               c.name AS company_name, wc.name AS work_center_name, coalesce(wc.timezone, 'Europe/Madrid') AS timezone,
               d.name AS department_name, mp.first_name || ' ' || mp.last_name AS manager_name,
@@ -139,6 +143,10 @@ export class EmployeesService {
       delete row.national_id;
       delete row.birth_date;
       delete row.phone;
+    }
+    if (access !== 'hr' && access !== 'self') {
+      // Dato necesario para el registro retributivo: solo RR. HH. y la propia persona.
+      delete row.sex;
     }
     if (row.user_id) {
       row.roles = await tx.query('SELECT role, company_id FROM role_assignment WHERE user_id = $1', [row.user_id]);
@@ -191,9 +199,9 @@ export class EmployeesService {
     }
     if (!person) {
       person = await tx.one(
-        `INSERT INTO person (tenant_id, first_name, last_name, national_id, email, phone)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, email`,
-        [tx.tenantId, input.firstName, input.lastName, input.nationalId ?? null, input.email ?? null, input.phone ?? null],
+        `INSERT INTO person (tenant_id, first_name, last_name, national_id, email, phone, sex)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email`,
+        [tx.tenantId, input.firstName, input.lastName, input.nationalId ?? null, input.email ?? null, input.phone ?? null, input.sex ?? null],
       );
     }
     const overlap = await tx.maybeOne(
@@ -207,8 +215,8 @@ export class EmployeesService {
     const employment = await tx.one(
       `INSERT INTO employment (tenant_id, person_id, company_id, work_center_id, department_id, manager_employment_id,
                                employee_number, job_title, contract_type, start_date, weekly_minutes, schedule,
-                               vacation_days_per_year)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                               vacation_days_per_year, professional_group)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
       [
         tx.tenantId,
         person.id,
@@ -223,6 +231,7 @@ export class EmployeesService {
         weekly,
         JSON.stringify(input.schedule ?? weekdaySchedule(weekly)),
         input.vacationDaysPerYear ?? 22,
+        input.professionalGroup ?? null,
       ],
     );
 
@@ -258,6 +267,7 @@ export class EmployeesService {
       national_id: input.nationalId,
       email: input.email,
       phone: input.phone,
+      sex: input.sex,
     };
     const empFields: Record<string, unknown> = {
       work_center_id: input.workCenterId,
@@ -271,6 +281,7 @@ export class EmployeesService {
       vacation_days_per_year: input.vacationDaysPerYear,
       hour_bank_enabled: input.hourBankEnabled,
       hour_bank_start: input.hourBankStart,
+      professional_group: input.professionalGroup,
     };
     await updateColumns(tx, 'person', emp.person_id, personFields);
     await updateColumns(tx, 'employment', employmentId, empFields);

@@ -699,3 +699,28 @@ describe('anuncios, políticas y firma', () => {
     await marta.get(`/api/signatures/${id}/file`).expect(403);
   });
 });
+
+describe('registro retributivo', () => {
+  it('calcula medias, medianas y brecha por grupo equiparando a jornada completa', async () => {
+    await adminAgent.patch(`/api/org/employees/${martaEmp}`).send({ sex: 'female', professionalGroup: 'Grupo 2' }).expect(200);
+    await adminAgent.patch(`/api/org/employees/${luisEmp}`).send({ sex: 'male', professionalGroup: 'Grupo 2' }).expect(200);
+    await luis.post('/api/pay/compensation').send({ employmentId: luisEmp, effectiveFrom: '2025-01-01', baseAnnual: 1 }).expect(403);
+    await adminAgent.post('/api/pay/compensation').send({ employmentId: luisEmp, effectiveFrom: '2025-01-01', baseAnnual: 36000, complementsAnnual: 4000 }).expect(201);
+    // Marta a media jornada: 15.000 € equivalen a 30.000 € a jornada completa.
+    await adminAgent.patch(`/api/org/employees/${martaEmp}`).send({ weeklyMinutes: 1200 }).expect(200);
+    await adminAgent.post('/api/pay/compensation').send({ employmentId: martaEmp, effectiveFrom: '2025-01-01', baseAnnual: 15000 }).expect(201);
+    const r = (await adminAgent.get(`/api/pay/register?companyId=${companyId}&year=${year}`).expect(200)).body;
+    const g = r.groups.find((x: any) => x.group === 'Grupo 2');
+    expect(g.women.total).toMatchObject({ n: 1, mean: 30000 });
+    expect(g.men.total).toMatchObject({ n: 1, mean: 40000 });
+    expect(g.gapMeanPct).toBe(25);
+    expect(g.flagged).toBe(true);
+    expect(r.withoutCompensation).toBeGreaterThan(0);
+    await luis.get(`/api/pay/register?companyId=${companyId}&year=${year}`).expect(403);
+    await marta.get(`/api/pay/compensation/${luisEmp}`).expect(403);
+    const csv = await adminAgent.get(`/api/pay/register.csv?companyId=${companyId}&year=${year}`).buffer(true).expect(200);
+    expect(csv.text).toContain('Grupo 2;Total;1;30000,00;30000,00;1;40000,00;40000,00;25,00;25,00');
+    expect((await marta.get(`/api/org/employees/${martaEmp}`)).body.sex).toBe('female');
+    expect((await marta.get(`/api/org/employees/${luisEmp}`)).body.sex).toBeUndefined();
+  });
+});

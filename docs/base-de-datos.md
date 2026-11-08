@@ -255,6 +255,13 @@ Un PDF con las nóminas de una sociedad y un mes: `period`, `file_id`, `page_cou
 #### `payslip_page`
 Una fila por página: `detected_ids` (DNI/NIE válidos encontrados), `suggested_person_id`, `person_id`, `review_status` (`pending`, `confirmed`, `skipped`). Una página confirmada debe tener persona; el lote no se publica con páginas pendientes.
 
+### Retribución
+
+#### `compensation`
+Retribución anual pactada de una relación laboral desde `effective_from` (única por fecha): `base_annual` (salario base), `complements_annual` (complementos salariales) y `extra_salary_annual` (percepciones extrasalariales), brutos anuales a la jornada real. Dato salarial: solo RR. HH.; la auditoría registra los cambios sin importes.
+
+Columnas añadidas: `person.sex` (`female`, `male`, `other` o nulo; lo ven RR. HH. y la persona), `employment.professional_group` (grupo, categoría o nivel del convenio) y `company.full_time_weekly_minutes` (jornada completa de referencia, 2400 por defecto).
+
 ### Comunicación y firma
 
 #### `announcement` y `announcement_read`
@@ -309,6 +316,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `008_approvals.sql` | Circuitos de aprobación, pasos por solicitud y delegaciones |
 | `009_lifecycle_custom_fields.sql` | Checklists de alta, baja y traspaso, traspasos y campos personalizados |
 | `010_communication_signature.sql` | Anuncios, políticas con aceptación y firma individual |
+| `011_pay_register.sql` | Sexo, grupo profesional, jornada completa de referencia y retribuciones |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 
