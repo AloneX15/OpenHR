@@ -129,8 +129,11 @@ function WebhookModal({ w, companies, onClose, onDone }: { w: any; companies: an
           <legend>Qué se publica</legend>
           {EVENTS.map((ev) => (
             <label key={ev.id} className="check">
-              <input type="checkbox" checked={f.events.includes(ev.id)} onChange={() => toggle(ev.id)} /> {ev.label}
-              <span className="small muted"> · {ev.hint}</span>
+              <input type="checkbox" checked={f.events.includes(ev.id)} onChange={() => toggle(ev.id)} />
+              <span>
+                {ev.label}
+                <span className="small muted"> · {ev.hint}</span>
+              </span>
             </label>
           ))}
         </fieldset>

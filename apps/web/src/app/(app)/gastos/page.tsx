@@ -337,7 +337,7 @@ function AllExpenses() {
       }
     >
       <div className="row" style={{ marginBottom: 12 }}>
-        <select value={status} onChange={(e) => (setStatus(e.target.value), setSelected(new Set()))} aria-label="Estado">
+        <select style={{ width: "auto" }} value={status} onChange={(e) => (setStatus(e.target.value), setSelected(new Set()))} aria-label="Estado">
           {Object.entries(STATUS).map(([k, v]) => (
             <option key={k} value={k}>
               {v.label}
@@ -346,7 +346,7 @@ function AllExpenses() {
         </select>
         {status === 'approved' && (
           <>
-            <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Nómina en la que se abonan" />
+            <input type="month" style={{ width: "auto" }} value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Nómina en la que se abonan" />
             <button
               className="btn btn-primary btn-sm"
               disabled={!selected.size || action.busy}

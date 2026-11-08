@@ -105,7 +105,7 @@ function Queue() {
   return (
     <Card>
       <div className="row" style={{ marginBottom: 12 }}>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Estado">
+        <select style={{ width: "auto" }} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Estado">
           <option value="active">Pendientes</option>
           {Object.entries(TICKET_STATUS).map(([k, v]) => (
             <option key={k} value={k}>

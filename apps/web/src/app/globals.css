@@ -216,7 +216,7 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--focus); }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-input[type='checkbox'] { width: auto; }
+input[type='checkbox'], input[type='radio'] { width: auto; }
 textarea { min-height: 72px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 14px; }
 .check { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
