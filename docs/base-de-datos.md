@@ -339,8 +339,9 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `setup_is_done()` | ¿Está configurada la instalación? |
 | `outbox_claim(limit)` | Reservar emails pendientes (`FOR UPDATE SKIP LOCKED`, arrendamiento de 5 min) |
 | `outbox_finish(id, error)` | Marcar enviado (y borrar el cuerpo) o programar reintento con espera exponencial |
-
-- `scim_token_lookup(hash)`: organización de un token de SCIM no revocado, antes de tener contexto de tenant.
+| `oidc_provider_by_domain(domain)` | Proveedor OpenID Connect activo para el dominio de un email, antes de iniciar sesión |
+| `kiosk_by_token_hash(hash)` | Organización y kiosco de un token de dispositivo activo |
+| `scim_token_lookup(hash)` | Organización de un token de SCIM no revocado, antes de tener contexto de tenant |
 
 ## Migraciones
 
