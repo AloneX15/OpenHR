@@ -127,3 +127,17 @@ _Avoid_: Firma, confirmación
 **Variables de nómina**:
 Datos del mes por relación laboral (días, horas y ausencias) que la gestoría necesita para calcular la nómina.
 _Avoid_: Incidencias de nómina, novedades
+
+## Gastos
+
+**Gasto**:
+Importe que una persona adelanta por trabajo (ticket o kilometraje) y que la sociedad le reembolsa con la nómina tras aprobarlo el responsable y RR. HH. En el código, `expense`.
+_Avoid_: Nota de gastos, dieta (salvo como categoría), reembolso (es el resultado, no el gasto)
+
+**Justificante**:
+Foto o PDF del ticket o factura que acredita un gasto.
+_Avoid_: Recibo, comprobante
+
+**Abonado**:
+Gasto aprobado que ya se ha incluido en la nómina de un mes concreto.
+_Avoid_: Pagado, liquidado

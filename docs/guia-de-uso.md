@@ -18,6 +18,8 @@
 
 **Nóminas y documentos.** En **Documentos** tienes tus nóminas, contratos y certificados. Te avisamos por email cuando hay uno nuevo.
 
+**Gastos.** En **Gastos → Nuevo gasto** eliges la categoría, el importe (o los kilómetros) y haces una foto del ticket. Lo aprueba tu responsable y después RR. HH.; se abona con la nómina y lo ves como «Abonado».
+
 **Firmas.** Si te piden firmar un documento, aparece en **Firmas** y en Inicio. Léelo, pide el código (llega a tu email), escríbelo y marca la declaración. La copia firmada queda en tus documentos.
 
 **Anuncios y políticas.** En **Anuncios** están las novedades de la empresa. En **Políticas**, las normas internas: algunas hay que leerlas y aceptarlas.
@@ -35,6 +37,7 @@
 - **Inicio** muestra las solicitudes pendientes de tu equipo.
 - **Ausencias → Por aprobar**: aprueba o rechaza (con motivo). Si el circuito tiene más pasos, tu aprobación pasa la solicitud al siguiente. **Calendario del equipo**: quién falta cada mes.
 - **Ausencias → Delegaciones**: antes de irte de vacaciones, delega tus aprobaciones en otra persona para esas fechas.
+- **Gastos → Por aprobar**: revisa el justificante y aprueba o rechaza con motivo. Tras tu aprobación pasa a RR. HH.
 - **Equipo**: quién está trabajando ahora y el control horario de cada persona (solo lectura).
 
 **Turnos.** En **Turnos** (responsables y RR. HH.) se planifica la semana eligiendo una plantilla, «Libre» o nada para cada persona y día. Los cambios son borradores hasta pulsar *Publicar*; entonces cada persona recibe un aviso y ve sus turnos en **Mi control horario**. Si un turno incumple el descanso entre jornadas, la jornada máxima o el descanso semanal, aparece un aviso. *Copiar semana anterior* ahorra trabajo en cuadrantes que se repiten.
@@ -58,6 +61,7 @@
 - **Equipo → persona → Ficha → Editar**: activar la bolsa de horas y desde qué fecha. En **Control horario**, *Registrar movimiento* para el saldo inicial o las horas pagadas en nómina.
 - **Anuncios, Políticas y Firmas**: publicar anuncios, subir políticas (o nuevas versiones) y ver quién falta por aceptarlas, y pedir firmas de documentos PDF.
 - **Equipo → persona → Retribución**: salario base, complementos y percepciones extrasalariales anuales, con su fecha. Rellena también el sexo y el grupo profesional en la ficha.
+- **Gastos → Todos y abono**: aprueba lo que llega, descarga el *CSV para nómina* y marca los gastos como abonados en el mes de la nómina. En **Categorías** (administración) se cambian límites, tarifa por km y si el justificante es obligatorio.
 - **Informes → Registro retributivo**: medias y medianas por sexo y grupo, con las brechas de al menos el 25 % marcadas; se descarga en CSV.
 - **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
 

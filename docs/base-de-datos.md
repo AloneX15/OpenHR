@@ -264,6 +264,14 @@ Retribución anual pactada de una relación laboral desde `effective_from` (úni
 
 Columnas añadidas: `person.sex` (`female`, `male`, `other` o nulo; lo ven RR. HH. y la persona), `employment.professional_group` (grupo, categoría o nivel del convenio) y `company.full_time_weekly_minutes` (jornada completa de referencia, 2400 por defecto).
 
+### Gastos
+
+#### `expense_category`
+Categorías del grupo: `kind` `amount` (importe del ticket) o `mileage` (con `rate_cents_per_km`; 26 céntimos por defecto, el importe exento de IRPF), `limit_cents` (aviso, no bloquea), `requires_receipt` y `active`. Cada grupo empieza con Comidas, Transporte, Alojamiento, Kilometraje y Otros.
+
+#### `expense`
+Un gasto de una relación laboral: fecha, concepto, `amount_cents`, `km`, `receipt_file_id` (en `stored_file`), `status` (`pending`, `approved`, `rejected`, `paid`, `cancelled`) y `stage` (`manager` o `hr`, solo mientras está pendiente). Guarda quién decidió en cada paso, el comentario y el mes de nómina en que se abonó (`paid_period`).
+
 ### Comunicación y firma
 
 #### `announcement` y `announcement_read`
@@ -340,6 +348,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `013_migration_jobs.sql` | Correspondencias y ejecuciones de migraciones desde otros sistemas |
 | `014_oidc.sql` | Proveedor OpenID Connect por organización (`oidc_provider`, secreto cifrado) y `oidc_provider_by_domain()` |
 | `015_kiosk_geo_offline.sql` | Kioscos, PIN y código de kiosco, zona de fichaje por centro, teletrabajo permitido y contexto del fichaje (canal, kiosco, posición) |
+| `016_expenses.sql` | Categorías de gasto (con las de partida para cada grupo) y gastos con justificante y aprobación |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

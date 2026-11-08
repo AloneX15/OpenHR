@@ -1085,3 +1085,69 @@ describe('kiosco, geolocalización y fichaje sin conexión', () => {
     expect((await luis.get(`/api/time/employments/${luisEmp}/verify`)).body.ok).toBe(true);
   });
 });
+
+describe('gastos', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+  let meals: string;
+  let mileage: string;
+
+  it('cada grupo tiene categorías de partida y solo administración las cambia', async () => {
+    const cats = (await luis.get('/api/expenses/categories').expect(200)).body;
+    meals = cats.find((c: any) => c.name === 'Comidas').id;
+    mileage = cats.find((c: any) => c.kind === 'mileage').id;
+    expect(cats.find((c: any) => c.kind === 'mileage').rate_cents_per_km).toBe(26);
+    await luis.patch(`/api/expenses/categories/${meals}`).send({ name: 'Comidas', limitCents: 1 }).expect(403);
+    await adminAgent.patch(`/api/expenses/categories/${meals}`).send({ name: 'Comidas', limitCents: 3000 }).expect(200);
+  });
+
+  it('el gasto pasa por el responsable y después por RR. HH., y se abona con la nómina', async () => {
+    const date = yesterday;
+    await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', meals).field('date', date).field('description', 'Comida con cliente').field('amount', '42,50').expect(400); // sin justificante
+    const created = (
+      await luis
+        .post('/api/expenses')
+        .field('employmentId', luisEmp)
+        .field('categoryId', meals)
+        .field('date', date)
+        .field('description', 'Comida con cliente')
+        .field('amount', '42,50')
+        .attach('receipt', png, { filename: 'ticket.png', contentType: 'image/png' })
+        .expect(201)
+    ).body;
+    expect(created).toMatchObject({ amountCents: 4250, stage: 'manager' });
+    await marta.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', mileage).field('date', date).field('description', 'x').field('km', '10').expect(403);
+
+    const mine = (await luis.get('/api/expenses/mine').expect(200)).body;
+    expect(mine[0]).toMatchObject({ status: 'pending', over_limit: true, has_receipt: true });
+    await luis.post(`/api/expenses/${created.id}/decision`).send({ approve: true }).expect(403);
+    expect((await luis.get('/api/expenses/to-approve')).body).toEqual([]);
+    expect((await marta.get('/api/expenses/to-approve')).body.map((x: any) => x.id)).toEqual([created.id]);
+    expect((await marta.get(`/api/expenses/${created.id}/receipt`).expect(200)).headers['content-type']).toBe('image/png');
+
+    await marta.post(`/api/expenses/${created.id}/decision`).send({ approve: true, comment: 'Visita a Acme' }).expect(201);
+    expect((await marta.get('/api/expenses/to-approve')).body).toEqual([]);
+    await marta.post(`/api/expenses/${created.id}/decision`).send({ approve: true }).expect(403);
+    await adminAgent.post(`/api/expenses/${created.id}/decision`).send({ approve: true }).expect(201);
+
+    const csv = (await adminAgent.get('/api/expenses/export?status=approved').expect(200)).text;
+    expect(csv).toContain('Luis Empleado');
+    expect(csv).toContain('42,50');
+    await marta.post('/api/expenses/pay').send({ ids: [created.id], period: date.slice(0, 7) }).expect(403);
+    await adminAgent.post('/api/expenses/pay').send({ ids: [created.id], period: date.slice(0, 7) }).expect(201);
+    expect((await luis.get('/api/expenses/mine')).body[0]).toMatchObject({ status: 'paid', paid_period: date.slice(0, 7) });
+    const notes = await owner.query(`SELECT n.type FROM notification n JOIN app_user u ON u.id = n.user_id WHERE u.email = 'luis@demo.test' AND n.type LIKE 'expense.%'`);
+    expect(notes.rows.map((r) => r.type)).toContain('expense.approved');
+  });
+
+  it('el kilometraje se calcula con la tarifa; rechazar exige motivo; se puede anular lo pendiente', async () => {
+    const km = (await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', mileage).field('date', yesterday).field('description', 'Visita a obra').field('km', '100').expect(201)).body;
+    expect(km.amountCents).toBe(2600);
+    await marta.post(`/api/expenses/${km.id}/decision`).send({ approve: false }).expect(400);
+    await marta.post(`/api/expenses/${km.id}/decision`).send({ approve: false, comment: 'Ya se pagó con la tarjeta' }).expect(201);
+    expect((await luis.get('/api/expenses/mine')).body.find((x: any) => x.id === km.id)).toMatchObject({ status: 'rejected', decision_comment: 'Ya se pagó con la tarjeta' });
+
+    const other = (await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', mileage).field('date', yesterday).field('description', 'Otra').field('km', '5').expect(201)).body;
+    await luis.post(`/api/expenses/${other.id}/cancel`).expect(201);
+    await luis.post('/api/expenses').field('employmentId', luisEmp).field('categoryId', mileage).field('date', '2999-01-01').field('description', 'Futuro').field('km', '5').expect(400);
+  });
+});

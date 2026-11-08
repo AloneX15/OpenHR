@@ -163,6 +163,22 @@ Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `s
 | `POST /payslips/batches/:id/publish` | H | Exige todas las páginas revisadas. Une las páginas de cada persona y la avisa |
 | `POST /payslips/batches/:id/discard` | H | |
 
+## Gastos (`/expenses`)
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /expenses/categories?all=` | Todos | Categorías activas (`all=true`: también las inactivas) |
+| `POST /expenses/categories`, `PATCH /expenses/categories/:id` | A o RR. HH. del grupo | `{ name, kind: amount \| mileage, rateCentsPerKm?, limitCents?, requiresReceipt, active }` |
+| `POST /expenses` | E | Multipart: `employmentId, categoryId, date, description, amount` (euros, admite coma) o `km`, y el fichero `receipt` (imagen o PDF, 10 MB). El kilometraje se calcula con la tarifa. Pasa al responsable directo o, si no lo hay, a RR. HH. |
+| `GET /expenses/mine` | E | Mis gastos, con `status`, `stage` y `over_limit` |
+| `GET /expenses/to-approve` | R / H | Pendientes cuyo paso me toca (también por delegación) |
+| `POST /expenses/:id/decision` | R / H | `{ approve, comment? }`; rechazar exige motivo. El responsable lo pasa a RR. HH.; RR. HH. lo aprueba del todo. Nadie aprueba lo suyo |
+| `POST /expenses/:id/cancel` | E | Anula un gasto propio pendiente |
+| `GET /expenses/:id/receipt` | E / R / H | Justificante (queda auditado si no es tuyo) |
+| `GET /expenses?status=&companyId=&period=` | H | Listado |
+| `GET /expenses/export?status=approved\|paid&period=` | H | CSV para la nómina |
+| `POST /expenses/pay` | H | `{ ids, period }`: marca aprobados como abonados en la nómina de ese mes |
+
 ## Retribución y registro retributivo
 
 | Método y ruta | Quién | Descripción |

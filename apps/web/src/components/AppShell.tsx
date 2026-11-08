@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boole
   { href: '/horario', label: 'Mi control horario', icon: 'clock', show: (m) => m.employments.length > 0 },
   { href: '/turnos', label: 'Turnos', icon: 'calendar', show: (m) => m.isManager || m.isHr },
   { href: '/ausencias', label: 'Ausencias', icon: 'vacation', show: () => true },
+  { href: '/gastos', label: 'Gastos', icon: 'expenses', show: (m) => m.employments.length > 0 || m.isHr },
   { href: '/documentos', label: 'Documentos', icon: 'documents', show: () => true },
   { href: '/firmas', label: 'Firmas', icon: 'sign', show: () => true },
   { href: '/tareas', label: 'Tareas', icon: 'tasks', show: () => true },

@@ -24,6 +24,7 @@ import { SignatureIcon } from '@animateicons/react/lucide/signature-icon';
 import { MonitorIcon } from '@animateicons/react/lucide/monitor-icon';
 import { MoonIcon } from '@animateicons/react/lucide/moon-icon';
 import { PlaneIcon } from '@animateicons/react/lucide/plane-icon';
+import { ReceiptIcon } from '@animateicons/react/lucide/receipt-icon';
 import { PencilIcon } from '@animateicons/react/lucide/pencil-icon';
 import { PlusIcon } from '@animateicons/react/lucide/plus-icon';
 import { SettingsIcon } from '@animateicons/react/lucide/settings-icon';
@@ -44,6 +45,7 @@ export const Icons = {
   clock: ClockIcon,
   timer: TimerIcon,
   vacation: PlaneIcon,
+  expenses: ReceiptIcon,
   calendar: CalendarDaysIcon,
   documents: FileTextIcon,
   team: UsersIcon,
