@@ -56,6 +56,8 @@
 
 ## Administración
 
+- **Organización → Inicio de sesión**: entrar con la cuenta de Microsoft 365 (o Google) de la empresa; incluye los pasos para registrar la aplicación en Entra ID.
+
 - **Organización → Migrar desde Factorial**: trae los datos de Factorial con una clave de API (ver [migración desde Factorial](migracion-factorial.md)).
 
 - **Privacidad → Conservación**: plazos de conservación y anonimización de quien dejó el grupo (se aplican solos cada día).

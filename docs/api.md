@@ -33,6 +33,10 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `POST /auth/logout` | P | Borra la cookie |
 | `POST /auth/forgot` | P | `{ email }`. Siempre responde `ok` (no revela si existe) |
 | `POST /auth/set-password` | P | `{ token, password }` para invitación o recuperación; un solo uso |
+| `POST /auth/oidc/lookup` | P | `{ email }` → `{ sso, label?, enforce? }` |
+| `GET /auth/oidc/start?email=` | P | Redirige al proveedor (código de autorización con PKCE, `state` y `nonce` en cookie firmada de 10 min) |
+| `GET /auth/oidc/callback` | P | Valida el ID token (firma JWKS, emisor, audiencia, caducidad, nonce, dominio) y abre sesión en la cuenta con ese email |
+| `GET /auth/oidc/config`, `PUT /auth/oidc/config` | A | `{ label, issuer, clientId, clientSecret?, domains, enabled, enforce }` |
 | `GET /auth/me` | S | Perfil, roles y relaciones laborales vigentes |
 | `POST /auth/password` | S | `{ current, next }`. Revoca las demás sesiones |
 | `POST /auth/mfa/setup` | S | Genera secreto TOTP y URL `otpauth://` |

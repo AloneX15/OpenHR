@@ -21,6 +21,7 @@
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
     "csv-parse": "^7.0.3",
+    "jose": "^6.2.16",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.5.0",
     "nodemailer": "^10.4.0",

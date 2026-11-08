@@ -28,6 +28,7 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - **JWT HS256** con algoritmo fijado, en cookie `HttpOnly`, `SameSite=Lax` y `Secure` cuando `PUBLIC_URL` es HTTPS.
 - **Sesiones revocables**: cada JWT lleva la versión de sesión de la cuenta; cambiar la contraseña o el email, activar o desactivar MFA o desactivar la cuenta la incrementa y cierra todas las sesiones al instante ([ADR 0003](adr/0003-sesiones.md)).
 - **Enlaces de contraseña de un solo uso**: llevan una huella del hash actual y caducan (24 h recuperación, 7 días invitación). La recuperación responde igual exista o no el email.
+- **Cuenta corporativa (OpenID Connect)**: Microsoft Entra ID, Google Workspace u otro proveedor, con código de autorización y PKCE, `state` y `nonce` en cookie firmada, y validación completa del ID token. Solo enlaza cuentas existentes del mismo email y dominio permitido; puede hacerse obligatoria para esos dominios. El secreto del cliente se guarda cifrado.
 - **Configuración inicial protegible** con `SETUP_TOKEN`, para que nadie reclame una instalación recién expuesta.
 
 ### Web y HTTP
@@ -102,7 +103,6 @@ Los tests de integración cubren los puntos 1, 3 y 4.
 - Sellado automático mensual y sellado de tiempo RFC 3161.
 - Límites de intentos compartidos (en base de datos o Redis) si se despliegan varias réplicas de la API.
 - Antivirus opcional para documentos subidos.
-- Inicio de sesión con Microsoft Entra ID (OIDC).
 
 ## Cómo informar de una vulnerabilidad
 

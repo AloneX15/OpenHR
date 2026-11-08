@@ -924,3 +924,103 @@ describe('migración desde Factorial', () => {
     expect(calls.some((c) => c.endsWith('/employees/employees'))).toBe(true);
   });
 });
+
+describe('inicio de sesión con OpenID Connect (Microsoft 365)', () => {
+  let idp: import('node:http').Server;
+  let issuer: string;
+  let nextNonce = '';
+  let nextEmail = 'luis@demo.test';
+
+  beforeAll(async () => {
+    const http = await import('node:http');
+    const jose = await import('jose');
+    const { publicKey, privateKey } = await jose.generateKeyPair('RS256');
+    const jwk = { ...(await jose.exportJWK(publicKey)), kid: 'k1', alg: 'RS256', use: 'sig' };
+    idp = http.createServer(async (req, res) => {
+      const url = new URL(req.url!, 'http://x');
+      const json = (o: unknown) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify(o));
+      };
+      if (url.pathname === '/.well-known/openid-configuration') {
+        return json({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`, jwks_uri: `${issuer}/jwks` });
+      }
+      if (url.pathname === '/jwks') return json({ keys: [jwk] });
+      if (url.pathname === '/token') {
+        let body = '';
+        for await (const chunk of req) body += chunk;
+        const p = new URLSearchParams(body);
+        if (p.get('client_secret') !== 'secreto-cliente' || p.get('code') !== 'codigo-ok' || !p.get('code_verifier')) {
+          res.writeHead(400).end();
+          return;
+        }
+        const idToken = await new jose.SignJWT({ email: nextEmail, nonce: nextNonce, email_verified: true })
+          .setProtectedHeader({ alg: 'RS256', kid: 'k1' })
+          .setIssuer(issuer)
+          .setAudience('cliente-openhr')
+          .setSubject('sub-1')
+          .setIssuedAt()
+          .setExpirationTime('5m')
+          .sign(privateKey);
+        return json({ id_token: idToken, access_token: 'x', token_type: 'Bearer' });
+      }
+      res.writeHead(404).end();
+    });
+    await new Promise<void>((r) => idp.listen(0, '127.0.0.1', () => r()));
+    issuer = `http://127.0.0.1:${(idp.address() as any).port}`;
+  });
+
+  afterAll(() => idp?.close());
+
+  const startFlow = async (email: string) => {
+    const agent = request.agent(server);
+    const start = await agent.get(`/api/auth/oidc/start?email=${encodeURIComponent(email)}`).expect(302);
+    const auth = new URL(start.headers.location);
+    expect(auth.origin + auth.pathname).toBe(`${issuer}/authorize`);
+    expect(auth.searchParams.get('code_challenge_method')).toBe('S256');
+    nextNonce = auth.searchParams.get('nonce')!;
+    return { agent, state: auth.searchParams.get('state')! };
+  };
+
+  it('administración configura el proveedor y la persona entra con su cuenta corporativa', async () => {
+    await marta.put('/api/auth/oidc/config').send({ issuer, clientId: 'x', clientSecret: 'y', domains: ['demo.test'] }).expect(403);
+    await adminAgent
+      .put('/api/auth/oidc/config')
+      .send({ label: 'Microsoft 365', issuer, clientId: 'cliente-openhr', clientSecret: 'secreto-cliente', domains: ['@Demo.test'] })
+      .expect(200);
+    expect((await request(server).post('/api/auth/oidc/lookup').send({ email: 'luis@demo.test' }).expect(200)).body).toMatchObject({ sso: true, label: 'Microsoft 365' });
+    expect((await request(server).post('/api/auth/oidc/lookup').send({ email: 'x@otro.test' }).expect(200)).body).toEqual({ sso: false });
+
+    const { agent, state } = await startFlow('luis@demo.test');
+    const cb = await agent.get(`/api/auth/oidc/callback?code=codigo-ok&state=${state}`).expect(302);
+    expect(cb.headers.location).toBe('http://localhost:3000/');
+    expect((await agent.get('/api/auth/me').expect(200)).body.email).toBe('luis@demo.test');
+  });
+
+  it('rechaza estado manipulado, nonce ajeno y emails sin cuenta', async () => {
+    const a = await startFlow('luis@demo.test');
+    const bad = await a.agent.get(`/api/auth/oidc/callback?code=codigo-ok&state=otro`).expect(302);
+    expect(bad.headers.location).toMatch(/\/login\?error=/);
+
+    const b = await startFlow('luis@demo.test');
+    nextNonce = 'nonce-de-otro';
+    const wrongNonce = await b.agent.get(`/api/auth/oidc/callback?code=codigo-ok&state=${b.state}`).expect(302);
+    expect(decodeURIComponent(wrongNonce.headers.location)).toMatch(/nonce/);
+
+    const c = await startFlow('luis@demo.test');
+    nextEmail = 'nadie@demo.test';
+    const unknown = await c.agent.get(`/api/auth/oidc/callback?code=codigo-ok&state=${c.state}`).expect(302);
+    expect(decodeURIComponent(unknown.headers.location)).toMatch(/No hay ninguna cuenta/);
+    await c.agent.get('/api/auth/me').expect(401);
+    nextEmail = 'luis@demo.test';
+  });
+
+  it('con «obligatorio», ya no se puede entrar con contraseña', async () => {
+    await adminAgent
+      .put('/api/auth/oidc/config')
+      .send({ issuer, clientId: 'cliente-openhr', domains: ['demo.test'], enforce: true })
+      .expect(200);
+    await request(server).post('/api/auth/login').send({ email: 'luis@demo.test', password: 'otra-contraseña-larga' }).expect(403);
+    await adminAgent.put('/api/auth/oidc/config').send({ issuer, clientId: 'cliente-openhr', domains: ['demo.test'], enforce: false, enabled: false }).expect(200);
+  });
+});

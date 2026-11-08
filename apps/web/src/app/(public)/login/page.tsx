@@ -15,6 +15,14 @@ function LoginForm() {
   const [challenge, setChallenge] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const { busy, error, run } = useAction();
+  const [sso, setSso] = useState<{ sso: boolean; label?: string; enforce?: boolean }>({ sso: false });
+  const ssoError = params.get('error');
+
+  // Si el dominio del email usa la cuenta corporativa, se ofrece el botón (o se exige).
+  const checkSso = () => {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return setSso({ sso: false });
+    api.post('/auth/oidc/lookup', { email }).then(setSso).catch(() => setSso({ sso: false }));
+  };
 
   useEffect(() => {
     api.get<{ done: boolean }>('/setup/status').then((s) => !s.done && router.replace('/configuracion-inicial')).catch(() => undefined);
@@ -37,24 +45,33 @@ function LoginForm() {
 
   return (
     <form onSubmit={submit}>
-      <ErrorBox error={error} />
+      <ErrorBox error={error || ssoError} />
       {!challenge ? (
         <>
           <Field label="Email">
-            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
+            <input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} onBlur={checkSso} autoFocus />
           </Field>
-          <Field label="Contraseña">
-            <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
-          </Field>
+          {sso.sso && (
+            <a className="btn btn-primary" style={{ width: '100%', marginBottom: 12 }} href={`/api/auth/oidc/start?email=${encodeURIComponent(email)}`}>
+              Entrar con {sso.label}
+            </a>
+          )}
+          {!sso.enforce && (
+            <Field label="Contraseña">
+              <input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            </Field>
+          )}
         </>
       ) : (
         <Field label="Código de verificación" hint="Abre tu app de autenticación e introduce el código de 6 dígitos.">
           <input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" required value={code} onChange={(e) => setCode(e.target.value)} autoFocus />
         </Field>
       )}
-      <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
-        {busy ? 'Entrando…' : challenge ? 'Verificar' : 'Entrar'}
-      </button>
+      {!(sso.enforce && !challenge) && (
+        <button className={sso.sso && !challenge ? 'btn' : 'btn btn-primary'} style={{ width: '100%' }} disabled={busy}>
+          {busy ? 'Entrando…' : challenge ? 'Verificar' : sso.sso ? 'Entrar con contraseña' : 'Entrar'}
+        </button>
+      )}
       <p className="muted small" style={{ textAlign: 'center', marginTop: 16 }}>
         <Link href="/recuperar">¿Has olvidado tu contraseña?</Link>
       </p>

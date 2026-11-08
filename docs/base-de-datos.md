@@ -336,6 +336,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `011_pay_register.sql` | Sexo, grupo profesional, jornada completa de referencia y retribuciones |
 | `012_privacy_whistleblowing.sql` | Derechos RGPD, conservación y purga de fichajes con punto de control, canal de denuncias cifrado |
 | `013_migration_jobs.sql` | Correspondencias y ejecuciones de migraciones desde otros sistemas |
+| `014_oidc.sql` | Proveedor OpenID Connect por organización (`oidc_provider`, secreto cifrado) y `oidc_provider_by_domain()` |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 
