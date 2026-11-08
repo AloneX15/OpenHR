@@ -17,6 +17,7 @@ const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boole
   { href: '/documentos', label: 'Documentos', icon: 'documents', show: () => true },
   { href: '/firmas', label: 'Firmas', icon: 'sign', show: () => true },
   { href: '/tareas', label: 'Tareas', icon: 'tasks', show: () => true },
+  { href: '/encuestas', label: 'Encuestas', icon: 'surveys', show: () => true },
   { href: '/anuncios', label: 'Anuncios', icon: 'announcements', show: () => true },
   { href: '/politicas', label: 'Políticas', icon: 'policies', show: () => true },
   { href: '/equipo', label: 'Equipo', icon: 'team', show: (m) => m.isManager || m.isHr },

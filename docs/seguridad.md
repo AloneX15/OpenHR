@@ -49,6 +49,10 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - El servidor solo envía a servicios de push conocidos (Chrome, Firefox, Edge, Safari; configurable con `PUSH_ALLOWED_HOSTS`), por https y sin puertos raros: una suscripción manipulada no puede hacer que llame a direcciones internas.
 - El contenido va cifrado de extremo a extremo (Web Push con VAPID). Al enviarse, el outbox borra el texto y las claves de la suscripción. El service worker solo abre rutas de la propia web.
 
+### Encuestas anónimas
+- La respuesta no guarda quién la dio ni la hora (solo el día); la participación (para no responder dos veces) va en otra tabla sin enlace con la respuesta. Los comentarios se muestran desordenados y no se enseña ningún resultado por debajo del mínimo de respuestas (5 por defecto).
+- Límite conocido: quien administre directamente PostgreSQL podría intentar cruzar ambas tablas por el orden físico o el identificador de transacción. La aplicación nunca lo hace y RR. HH. no tiene acceso a la base de datos.
+
 ### SCIM
 - El token de SCIM se guarda como huella SHA-256, se puede revocar y solo sirve para su organización. SCIM no asigna roles: solo crea, cambia el email y activa o desactiva cuentas de empleado.
 - «Borrar» por SCIM desactiva (el registro de jornada y la auditoría deben conservarse). La desactivación cierra al momento las sesiones abiertas.

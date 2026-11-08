@@ -277,6 +277,20 @@ Categorías del grupo: `kind` `amount` (importe del ticket) o `mileage` (con `ra
 #### `expense`
 Un gasto de una relación laboral: fecha, concepto, `amount_cents`, `km`, `receipt_file_id` (en `stored_file`), `status` (`pending`, `approved`, `rejected`, `paid`, `cancelled`) y `stage` (`manager` o `hr`, solo mientras está pendiente). Guarda quién decidió en cada paso, el comentario y el mes de nómina en que se abonó (`paid_period`).
 
+### Encuestas
+
+#### `survey`
+Encuesta de una sociedad (o de todo el grupo si `company_id` es NULL): `title`, `description`, `anonymous`, `min_responses` (mínimo para enseñar resultados de una anónima), `status` (`draft`, `open`, `closed`) y `closes_on`.
+
+#### `survey_question`
+`position`, `kind` (`scale` 1–5, `enps` 0–10, `choice` con `options`, `text`) y `required`.
+
+#### `survey_participation`
+Quién ha respondido, para no responder dos veces. Sin hora ni enlace con la respuesta.
+
+#### `survey_response`
+`answers` (objeto pregunta → valor) y `submitted_on` (solo el día). `user_id` solo en las encuestas con nombre.
+
 ### Comunicación y firma
 
 #### `announcement` y `announcement_read`
@@ -366,6 +380,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `017_web_push.sql` | Suscripciones push por navegador y redacción del outbox también para los push enviados |
 | `018_chat_webhooks.sql` | Canales de Slack y Teams (`chat_webhook`) con la URL cifrada |
 | `019_scim.sql` | Tokens de SCIM, `app_user.scim_external_id` y `updated_at`, y `scim_token_lookup()` |
+| `020_surveys.sql` | Encuestas, preguntas, participación y respuestas (anónimas o con nombre) |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

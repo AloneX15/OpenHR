@@ -20,6 +20,8 @@
 
 **Gastos.** En **Gastos → Nuevo gasto** eliges la categoría, el importe (o los kilómetros) y haces una foto del ticket. Lo aprueba tu responsable y después RR. HH.; se abona con la nómina y lo ves como «Abonado».
 
+**Encuestas.** Cuando RR. HH. lanza una encuesta te llega un aviso; respóndela en **Encuestas**. Si es anónima, nadie puede ver qué has contestado tú.
+
 **Firmas.** Si te piden firmar un documento, aparece en **Firmas** y en Inicio. Léelo, pide el código (llega a tu email), escríbelo y marca la declaración. La copia firmada queda en tus documentos.
 
 **Anuncios y políticas.** En **Anuncios** están las novedades de la empresa. En **Políticas**, las normas internas: algunas hay que leerlas y aceptarlas.
@@ -62,6 +64,7 @@
 - **Anuncios, Políticas y Firmas**: publicar anuncios, subir políticas (o nuevas versiones) y ver quién falta por aceptarlas, y pedir firmas de documentos PDF.
 - **Equipo → persona → Retribución**: salario base, complementos y percepciones extrasalariales anuales, con su fecha. Rellena también el sexo y el grupo profesional en la ficha.
 - **Gastos → Todos y abono**: aprueba lo que llega, descarga el *CSV para nómina* y marca los gastos como abonados en el mes de la nómina. En **Categorías** (administración) se cambian límites, tarifa por km y si el justificante es obligatorio.
+- **Encuestas → Gestionar**: crea una encuesta (la plantilla trae eNPS y preguntas de clima), elige si es anónima y para qué sociedad, y *Lanzar*. En *Resultados* ves la participación, el eNPS, las medias y los comentarios.
 - **Informes → Registro retributivo**: medias y medianas por sexo y grupo, con las brechas de al menos el 25 % marcadas; se descarga en CSV.
 - **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
 

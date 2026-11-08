@@ -128,6 +128,16 @@ _Avoid_: Firma, confirmación
 Datos del mes por relación laboral (días, horas y ausencias) que la gestoría necesita para calcular la nómina.
 _Avoid_: Incidencias de nómina, novedades
 
+## Encuestas
+
+**Encuesta**:
+Conjunto de preguntas que RR. HH. lanza a la plantilla de una sociedad o de todo el grupo; puede ser anónima o con nombre.
+_Avoid_: Formulario, cuestionario (como término técnico)
+
+**eNPS**:
+Índice de recomendación de la empresa como lugar de trabajo: porcentaje de promotores (9–10) menos porcentaje de detractores (0–6), de −100 a +100.
+_Avoid_: NPS (es el de clientes)
+
 ## Gastos
 
 **Gasto**:

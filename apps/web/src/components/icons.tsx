@@ -12,6 +12,7 @@ import { CalendarDaysIcon } from '@animateicons/react/lucide/calendar-days-icon'
 import { ChartColumnIcon } from '@animateicons/react/lucide/chart-column-icon';
 import { CheckIcon } from '@animateicons/react/lucide/check-icon';
 import { ClipboardCheckIcon } from '@animateicons/react/lucide/clipboard-check-icon';
+import { ClipboardListIcon } from '@animateicons/react/lucide/clipboard-list-icon';
 import { ClockIcon } from '@animateicons/react/lucide/clock-icon';
 import { DownloadIcon } from '@animateicons/react/lucide/download-icon';
 import { FileTextIcon } from '@animateicons/react/lucide/file-text-icon';
@@ -65,6 +66,7 @@ export const Icons = {
   edit: PencilIcon,
   check: CheckIcon,
   tasks: ClipboardCheckIcon,
+  surveys: ClipboardListIcon,
   announcements: MegaphoneIcon,
   policies: ScrollTextIcon,
   sign: SignatureIcon,

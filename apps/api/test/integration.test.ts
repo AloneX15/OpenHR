@@ -1310,3 +1310,65 @@ describe('SCIM (Entra ID)', () => {
     await scim('get', '/Users').expect(401);
   });
 });
+
+describe('encuestas', () => {
+  let anon: string;
+  let named: string;
+  const body = (anonymous: boolean) => ({
+    title: anonymous ? 'Clima laboral' : 'Comida de empresa',
+    anonymous,
+    minResponses: 3,
+    companyId,
+    questions: [
+      { kind: 'scale', text: '¿Te sientes valorado?' },
+      { kind: 'enps', text: '¿Recomendarías trabajar aquí?' },
+      { kind: 'choice', text: 'Día preferido', options: ['Jueves', 'Viernes'], required: false },
+      { kind: 'text', text: '¿Algo más?', required: false },
+    ],
+  });
+
+  it('RR. HH. prepara y lanza la encuesta; la plantilla recibe el aviso', async () => {
+    await luis.post('/api/surveys').send(body(true)).expect(403);
+    anon = (await adminAgent.post('/api/surveys').send(body(true)).expect(201)).body.id;
+    await adminAgent.put(`/api/surveys/${anon}`).send({ ...body(true), description: 'Cinco minutos' }).expect(200);
+    expect((await luis.get('/api/surveys/mine')).body).toEqual([]);
+    await luis.get(`/api/surveys/${anon}`).expect(404); // borrador
+    await adminAgent.post(`/api/surveys/${anon}/open`).expect(201);
+    await adminAgent.put(`/api/surveys/${anon}`).send(body(true)).expect(409);
+    expect((await luis.get('/api/surveys/mine')).body).toMatchObject([{ id: anon, answered: false, anonymous: true }]);
+    const n = await owner.query(`SELECT count(*)::int AS n FROM notification WHERE type = 'survey.opened'`);
+    expect(n.rows[0].n).toBeGreaterThanOrEqual(2);
+  });
+
+  it('cada persona responde una vez; con pocas respuestas anónimas no se ven resultados', async () => {
+    const qs = (await luis.get(`/api/surveys/${anon}`).expect(200)).body.questions;
+    const ans = (a: number, b: number, extra: Record<string, unknown> = {}) => ({ answers: { [qs[0].id]: a, [qs[1].id]: b, ...extra } });
+    await luis.post(`/api/surveys/${anon}/responses`).send({ answers: { [qs[0].id]: 9 } }).expect(400);
+    await luis.post(`/api/surveys/${anon}/responses`).send(ans(4, 9, { [qs[3].id]: 'Más formación' })).expect(201);
+    await luis.post(`/api/surveys/${anon}/responses`).send(ans(1, 0)).expect(409);
+    await marta.post(`/api/surveys/${anon}/responses`).send(ans(5, 10, { [qs[2].id]: 'Viernes' })).expect(201);
+    await luis.get(`/api/surveys/${anon}/results`).expect(403);
+    expect((await adminAgent.get(`/api/surveys/${anon}/results`)).body).toMatchObject({ hidden: true, responses: 2, questions: [] });
+    await adminAgent.post(`/api/surveys/${anon}/responses`).send(ans(3, 5)).expect(201);
+    const r = (await adminAgent.get(`/api/surveys/${anon}/results`)).body;
+    expect(r).toMatchObject({ hidden: false, responses: 3 });
+    expect(r.questions[0].average).toBe(4);
+    expect(r.questions[1].enps).toBe(33);
+    expect(r.questions[3].comments).toEqual(['Más formación']);
+    expect(r.respondents).toBeUndefined();
+    const stored = await owner.query('SELECT user_id FROM survey_response WHERE survey_id = $1', [anon]);
+    expect(stored.rows.every((x) => x.user_id === null)).toBe(true);
+    await adminAgent.post(`/api/surveys/${anon}/close`).expect(201);
+    await luis.post(`/api/surveys/${anon}/responses`).send(ans(1, 1)).expect(409);
+  });
+
+  it('en las encuestas con nombre se ve quién respondió qué', async () => {
+    named = (await adminAgent.post('/api/surveys').send(body(false)).expect(201)).body.id;
+    await adminAgent.post(`/api/surveys/${named}/open`).expect(201);
+    const qs = (await luis.get(`/api/surveys/${named}`)).body.questions;
+    await luis.post(`/api/surveys/${named}/responses`).send({ answers: { [qs[0].id]: 3, [qs[1].id]: 8, [qs[2].id]: 'Jueves' } }).expect(201);
+    const r = (await adminAgent.get(`/api/surveys/${named}/results`)).body;
+    expect(r.hidden).toBe(false);
+    expect(r.respondents).toEqual([{ name: 'Luis Empleado', answers: expect.objectContaining({ [qs[2].id]: 'Jueves' }) }]);
+  });
+});

@@ -215,6 +215,19 @@ Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `s
 | `GET /expenses/export?status=approved\|paid&period=` | H | CSV para la nómina |
 | `POST /expenses/pay` | H | `{ ids, period }`: marca aprobados como abonados en la nómina de ese mes |
 
+## Encuestas (`/surveys`)
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /surveys/mine` | Todos | Encuestas abiertas para mí (mi sociedad o todo el grupo), con `answered` |
+| `GET /surveys/:id` | Destinatarios / H | Encuesta con sus preguntas |
+| `POST /surveys/:id/responses` | Destinatarios | `{ answers: { [preguntaId]: valor } }`: escala 1–5, eNPS 0–10, una opción o texto. Una vez por persona (409 si repite) |
+| `GET /surveys` | H | Encuestas que gestiono, con número de respuestas |
+| `POST /surveys`, `PUT /surveys/:id` | H (todo el grupo: A o RR. HH. del grupo) | `{ title, description?, companyId?, anonymous, minResponses, closesOn?, questions: [{ kind: scale \| enps \| choice \| text, text, options?, required }] }`. Solo se edita en borrador |
+| `POST /surveys/:id/open`, `POST /surveys/:id/close` | H | Lanzar (avisa a los destinatarios) y cerrar |
+| `POST /surveys/:id/delete` | H (A si ya se lanzó) | |
+| `GET /surveys/:id/results` | H | Participación, media y distribución, eNPS (promotores 9–10 menos detractores 0–6), recuento por opción y comentarios desordenados. Anónima con menos de `minResponses` respuestas: `hidden: true` sin datos. Con nombre: también `respondents` |
+
 ## Retribución y registro retributivo
 
 | Método y ruta | Quién | Descripción |
