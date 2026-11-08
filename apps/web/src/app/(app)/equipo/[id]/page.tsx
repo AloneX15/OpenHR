@@ -6,13 +6,14 @@ import { FormEvent, useState } from 'react';
 import { EmployeeForm, fromEmployee } from '@/components/EmployeeForm';
 import { RequestModal } from '@/components/RequestModal';
 import { HourBankCard } from '@/components/HourBankCard';
+import { CustomFieldsCard, EmployeeChecklists, TransferModal } from '@/components/Lifecycle';
 import { TimeSheet } from '@/components/TimeSheet';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
 import { CATEGORY_LABEL, dateTime, dayLabel, STATUS_LABEL, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'ficha' | 'horario' | 'ausencias' | 'documentos';
+type Tab = 'ficha' | 'horario' | 'ausencias' | 'documentos' | 'checklists';
 
 export default function EmployeePage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +42,7 @@ export default function EmployeePage() {
           { id: 'ficha', label: 'Ficha' },
           { id: 'horario', label: 'Control horario' },
           { id: 'ausencias', label: 'Ausencias' },
+          { id: 'checklists', label: 'Checklists' },
           ...(isHr ? [{ id: 'documentos' as Tab, label: 'Documentos' }] : []),
         ]}
       />
@@ -53,6 +55,7 @@ export default function EmployeePage() {
       )}
       {tab === 'ausencias' && <EmployeeAbsences employmentId={id} isHr={isHr} />}
       {tab === 'documentos' && <EmployeeDocuments personId={e.person_id} companyId={e.company_id} />}
+      {tab === 'checklists' && <EmployeeChecklists employmentId={id} isHr={isHr} companyId={e.company_id} />}
     </>
   );
 }
@@ -60,6 +63,7 @@ export default function EmployeePage() {
 function Profile({ e, isHr, isAdmin, reload }: { e: any; isHr: boolean; isAdmin: boolean; reload: () => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [terminating, setTerminating] = useState(false);
+  const [transferring, setTransferring] = useState(false);
   const action = useAction();
   const [msg, setMsg] = useState<string | null>(null);
   const weekly = (e.weekly_minutes / 60).toLocaleString('es-ES');
@@ -138,6 +142,11 @@ function Profile({ e, isHr, isAdmin, reload }: { e: any; isHr: boolean; isAdmin:
                 </button>
               )}
               {!e.end_date && (
+                <button className="btn" onClick={() => setTransferring(true)}>
+                  Traspasar a otra sociedad
+                </button>
+              )}
+              {!e.end_date && (
                 <button className="btn btn-danger" onClick={() => setTerminating(true)}>
                   Dar de baja
                 </button>
@@ -148,6 +157,8 @@ function Profile({ e, isHr, isAdmin, reload }: { e: any; isHr: boolean; isAdmin:
         </div>
       )}
       {terminating && <TerminateModal e={e} onClose={() => setTerminating(false)} onDone={reload} />}
+      {transferring && <TransferModal e={e} onClose={() => setTransferring(false)} />}
+      <CustomFieldsCard key={JSON.stringify(e.custom_fields)} e={e} isHr={isHr} reload={reload} />
     </div>
   );
 }

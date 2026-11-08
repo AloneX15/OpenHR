@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boole
   { href: '/turnos', label: 'Turnos', icon: 'calendar', show: (m) => m.isManager || m.isHr },
   { href: '/ausencias', label: 'Ausencias', icon: 'vacation', show: () => true },
   { href: '/documentos', label: 'Documentos', icon: 'documents', show: () => true },
+  { href: '/tareas', label: 'Tareas', icon: 'tasks', show: () => true },
   { href: '/equipo', label: 'Equipo', icon: 'team', show: (m) => m.isManager || m.isHr },
   { href: '/organizacion', label: 'Organización', icon: 'organization', show: (m) => m.isHr },
   { href: '/informes', label: 'Informes', icon: 'reports', show: (m) => m.isHr },

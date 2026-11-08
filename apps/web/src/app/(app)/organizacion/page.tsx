@@ -5,12 +5,13 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { ApprovalFlows } from '@/components/Approvals';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
+import { ChecklistTemplatesAdmin, CustomFieldsAdmin } from '@/components/Lifecycle';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
 import { dayLabel, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones';
+type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones' | 'checklists' | 'campos';
 
 export default function OrganizationPage() {
   const { me } = useSession();
@@ -28,6 +29,8 @@ export default function OrganizationPage() {
           { id: 'festivos', label: 'Festivos' },
           { id: 'ausencias', label: 'Tipos de ausencia' },
           { id: 'aprobaciones', label: 'Circuitos de aprobación' },
+          { id: 'checklists', label: 'Checklists' },
+          { id: 'campos', label: 'Campos personalizados' },
         ]}
       />
       {tab === 'personas' && <People />}
@@ -36,6 +39,8 @@ export default function OrganizationPage() {
       {tab === 'festivos' && <Holidays isAdmin={me.isAdmin} />}
       {tab === 'ausencias' && <AbsenceTypes isAdmin={me.isAdmin} />}
       {tab === 'aprobaciones' && <ApprovalFlows isAdmin={me.isAdmin} />}
+      {tab === 'checklists' && <ChecklistTemplatesAdmin />}
+      {tab === 'campos' && <CustomFieldsAdmin isAdmin={me.isAdmin} />}
     </>
   );
 }

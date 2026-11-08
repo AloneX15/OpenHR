@@ -321,3 +321,6 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border-left: 10px solid; vertical-align: middle; }
 
 .steps { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; }
+
+.task { padding: 8px 0; }
+.template-item { display: grid; grid-template-columns: 1fr 150px 80px auto; gap: 6px; margin-bottom: 6px; align-items: center; }

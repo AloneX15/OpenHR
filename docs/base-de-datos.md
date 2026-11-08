@@ -151,6 +151,19 @@ Ser empleado o responsable no necesita fila: se deriva de `employment`.
 | `vacation_days_per_year` | numeric(5,1) | Días laborables al año (prorrateados el primer y último año) |
 | `time_chain_head`, `time_chain_seq` | text, bigint | Cabeza de la cadena de fichajes |
 
+### Ciclo de vida y campos personalizados
+
+#### `checklist_template` y `checklist_template_item`
+Plantillas de alta (`onboarding`), baja (`offboarding`) o traspaso (`transfer`), de una sociedad o generales (`company_id` nulo). Cada tarea tiene `title`, `description`, `assignee` (`hr`, `manager` o `employee`) y `due_offset_days` respecto a la fecha del alta, baja o traspaso.
+
+#### `checklist` y `checklist_task`
+Checklist de una relación laboral (`kind`, `name`, `reference_date`, `status` `open`/`done`/`cancelled`) y sus tareas (`due_date`, `done_at`, `done_by`, `note`). Se crean solos al dar de alta, dar de baja o traspasar si hay una plantilla activa (la de la sociedad o, si no, la general).
+
+#### `custom_field`
+Definición de un campo propio: `entity` (`person` o `employment`), `key` (única, `^[a-z][a-z0-9_]+$`), `label`, `type` (`text`, `number`, `date`, `boolean`, `select` con `options`), `required`, `visibility` (`hr`, `manager` o `employee`), `position`, `active`. Los valores se guardan en la columna `custom_values` (jsonb) de `person` o `employment`, validados por la API.
+
+`employment.transferred_from_employment_id` enlaza la relación laboral nueva de un traspaso con la anterior.
+
 ### Registro de jornada
 
 #### `time_entry` — fichajes (append-only)
@@ -281,6 +294,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `006_session_hardening.sql` | Versión de sesión, comprobación de sesión y borrado del cuerpo de los emails enviados |
 | `007_shifts_hour_bank.sql` | Turnos, reglas de descanso por sociedad y bolsa de horas |
 | `008_approvals.sql` | Circuitos de aprobación, pasos por solicitud y delegaciones |
+| `009_lifecycle_custom_fields.sql` | Checklists de alta, baja y traspaso, traspasos y campos personalizados |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

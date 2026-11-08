@@ -259,7 +259,7 @@ export class OrgController {
     return this.run(u, async (tx) => {
       const actor = await loadActor(tx);
       const access = await assertEmploymentAccess(tx, actor, id);
-      return this.employees.get(tx, id, access === 'self' || access === 'hr');
+      return this.employees.get(tx, id, access);
     });
   }
 

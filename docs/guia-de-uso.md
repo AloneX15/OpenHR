@@ -12,6 +12,8 @@
 
 **Nóminas y documentos.** En **Documentos** tienes tus nóminas, contratos y certificados. Te avisamos por email cuando hay uno nuevo.
 
+**Tareas.** En **Tareas** ves lo que te toca de las altas, bajas y traspasos en curso (por ejemplo, leer el manual de acogida). Márcalas al terminarlas.
+
 **Tu cuenta.** En **Mi cuenta** (tu nombre, abajo a la izquierda) cambias la contraseña, activas la verificación en dos pasos y eliges el tema: Claro, Oscuro o Sistema.
 
 ## Responsables de equipo
@@ -28,6 +30,9 @@
 ## RR. HH.
 
 - **Organización → Altas e importación**: alta individual o importación desde CSV o Excel (*Descargar plantilla*, *Validar*, *Importar*). Si una fila tiene errores, no se importa nada hasta corregirla.
+- **Organización → Checklists**: plantillas de tareas para altas, bajas y traspasos. Se aplican solas.
+- **Organización → Campos personalizados**: datos propios (talla de uniforme, coste por hora…) y quién puede verlos.
+- **Equipo → persona → Traspasar a otra sociedad**: cambia a la persona de sociedad del grupo en una fecha, conservando su jornada.
 - **Equipo → persona**: editar sus datos, reenviar invitación, dar de baja, registrar ausencias (quedan aprobadas), ajustar el saldo de vacaciones, corregir fichajes y subir documentos.
 - **Documentos → Reparto de nóminas**:
   1. *Subir PDF de nóminas* con la sociedad y el mes.

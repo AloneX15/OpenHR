@@ -65,6 +65,23 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `PUT /org/users/:userId/roles` | A | `{ admin, hrAll, hrCompanyIds }`. Siempre queda al menos un admin |
 | `GET /org/audit?entity=&entityId=` | A | Últimos 200 eventos de auditoría |
 
+## Ciclo de vida y campos personalizados
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /checklists/templates` | S | Plantillas con sus tareas |
+| `POST /checklists/templates`, `PUT /checklists/templates/:id` | H (sociedad) / A o RR. HH. del grupo (generales) | `{ companyId?, kind, name, active, items: [{ title, description?, assignee, dueOffsetDays }] }` |
+| `GET /checklists/tasks` | S | Mis tareas abiertas (como RR. HH., responsable o persona) |
+| `POST /checklists/tasks/:id` | Quien tenga asignada la tarea / H | `{ done, note? }`. Al completar la última, el checklist queda hecho |
+| `GET /org/employees/:id/checklists` | E / R / H | Checklists de la persona (la persona solo ve sus tareas) |
+| `POST /org/employees/:id/checklists` | H | Inicia uno a mano: `{ templateId, referenceDate }` |
+| `POST /org/employees/:id/transfer` | H de ambas sociedades | `{ companyId, effectiveDate, workCenterId?, departmentId?, managerEmploymentId?, jobTitle? }`. Cierra la relación laboral el día anterior y crea otra; sus reportes pasan a la nueva |
+| `GET /org/custom-fields` | S | Definiciones |
+| `POST /org/custom-fields`, `PATCH /org/custom-fields/:id` | A | La clave y la entidad no cambian una vez creadas |
+| `PUT /org/employees/:id/custom-values` | H | `{ person?: { clave: valor }, employment?: { clave: valor } }`, validado por tipo |
+
+`GET /org/employees/:id` incluye `custom_fields`: los campos que quien consulta puede ver, con su valor.
+
 ## Control horario (`/time`)
 
 | Método y ruta | Quién | Descripción |

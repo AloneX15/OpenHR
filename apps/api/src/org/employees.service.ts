@@ -1,8 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { z } from 'zod';
-import { Actor, assertHr, audit, hrCompanyFilter } from '../common/access';
+import { Actor, assertHr, audit, EmploymentAccess, hrCompanyFilter } from '../common/access';
+import { ChecklistsService } from './checklists.service';
+import { CustomFieldsService, visibleFields } from './custom-fields.service';
 import { zDate, zUuid } from '../common/http';
 import { isValidNationalId, normalizeNationalId } from '../common/spanish-id';
+import { addDays } from '../common/dates';
 import { Tx } from '../db/db.service';
 import { AuthService } from '../auth/auth.service';
 
@@ -64,7 +67,11 @@ export function weekdaySchedule(weeklyMinutes: number): Record<string, number> {
 
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly checklists: ChecklistsService,
+    private readonly customFields: CustomFieldsService,
+  ) {}
 
   async list(tx: Tx, actor: Actor, opts: { companyId?: string; q?: string; includeInactive?: boolean }) {
     const companies = hrCompanyFilter(actor);
@@ -107,9 +114,11 @@ export class EmployeesService {
     );
   }
 
-  async get(tx: Tx, employmentId: string, includeSensitive: boolean) {
+  async get(tx: Tx, employmentId: string, access: EmploymentAccess) {
+    const includeSensitive = access === 'self' || access === 'hr';
     const row = await tx.maybeOne(
       `SELECT e.*, p.first_name, p.last_name, p.email, p.phone, p.national_id, p.birth_date,
+              p.custom_values AS person_custom_values,
               c.name AS company_name, wc.name AS work_center_name, coalesce(wc.timezone, 'Europe/Madrid') AS timezone,
               d.name AS department_name, mp.first_name || ' ' || mp.last_name AS manager_name,
               u.id AS user_id, u.is_active AS user_active, (u.password_hash IS NOT NULL) AS user_activated
@@ -134,6 +143,14 @@ export class EmployeesService {
     if (row.user_id) {
       row.roles = await tx.query('SELECT role, company_id FROM role_assignment WHERE user_id = $1', [row.user_id]);
     }
+    // Campos personalizados que esta persona puede ver, con sus valores.
+    const fields = visibleFields(await this.customFields.list(tx), access);
+    row.custom_fields = fields.map((f) => ({
+      ...f,
+      value: (f.entity === 'person' ? row.person_custom_values : row.custom_values)?.[f.key] ?? null,
+    }));
+    delete row.person_custom_values;
+    delete row.custom_values;
     return row;
   }
 
@@ -222,6 +239,7 @@ export class EmployeesService {
         invited = true;
       }
     }
+    await this.checklists.startFor(tx, employment.id, 'onboarding', input.startDate);
     await audit(tx, 'employee.created', 'employment', employment.id, { companyId: input.companyId });
     return { employmentId: employment.id, personId: person.id, invited };
   }
@@ -278,7 +296,63 @@ export class EmployeesService {
       [emp.person_id],
     );
     if (!stillActive) await tx.query('UPDATE app_user SET is_active = false WHERE person_id = $1', [emp.person_id]);
+    await this.checklists.startFor(tx, employmentId, 'offboarding', endDate);
     await audit(tx, 'employee.terminated', 'employment', employmentId, { endDate });
+  }
+
+  /**
+   * Traspaso entre sociedades del grupo: cierra la relación laboral el día anterior a la
+   * fecha efectiva y abre otra en la sociedad de destino con los mismos datos de jornada.
+   * El registro de jornada y las ausencias de cada sociedad quedan en su relación laboral.
+   */
+  async transfer(
+    tx: Tx,
+    actor: Actor,
+    employmentId: string,
+    input: { companyId: string; effectiveDate: string; workCenterId?: string | null; departmentId?: string | null; managerEmploymentId?: string | null; jobTitle?: string | null },
+  ) {
+    const from = await tx.maybeOne('SELECT * FROM employment WHERE id = $1 FOR UPDATE', [employmentId]);
+    if (!from) throw new NotFoundException();
+    assertHr(actor, from.company_id);
+    assertHr(actor, input.companyId);
+    if (input.companyId === from.company_id) throw new BadRequestException('El traspaso es a otra sociedad; para cambiar de centro o puesto, edita la ficha');
+    if (from.end_date && from.end_date < input.effectiveDate) throw new BadRequestException('La relación laboral ya había terminado');
+    if (input.effectiveDate <= from.start_date) throw new BadRequestException('La fecha del traspaso debe ser posterior al alta');
+    await this.assertBelongsToCompany(tx, 'work_center', input.workCenterId, input.companyId);
+    await this.assertBelongsToCompany(tx, 'department', input.departmentId, input.companyId);
+    const endDate = addDays(input.effectiveDate, -1);
+    await tx.query('UPDATE employment SET end_date = $2 WHERE id = $1', [employmentId, endDate]);
+    const created = await tx.one(
+      `INSERT INTO employment (tenant_id, person_id, company_id, work_center_id, department_id, manager_employment_id, employee_number,
+                               job_title, contract_type, start_date, weekly_minutes, schedule, vacation_days_per_year,
+                               transferred_from_employment_id, custom_values)
+       VALUES ($1,$2,$3,$4,$5,$6,NULL,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+      [
+        tx.tenantId,
+        from.person_id,
+        input.companyId,
+        input.workCenterId ?? null,
+        input.departmentId ?? null,
+        input.managerEmploymentId ?? null,
+        input.jobTitle === undefined ? from.job_title : input.jobTitle,
+        from.contract_type,
+        input.effectiveDate,
+        from.weekly_minutes,
+        JSON.stringify(from.schedule),
+        from.vacation_days_per_year,
+        employmentId,
+        JSON.stringify(from.custom_values ?? {}),
+      ],
+    );
+    // Las personas que dependían de esta relación laboral pasan a depender de la nueva.
+    await tx.query('UPDATE employment SET manager_employment_id = $2 WHERE manager_employment_id = $1 AND (end_date IS NULL OR end_date >= $3)', [
+      employmentId,
+      created.id,
+      input.effectiveDate,
+    ]);
+    await this.checklists.startFor(tx, created.id, 'transfer', input.effectiveDate);
+    await audit(tx, 'employee.transferred', 'employment', employmentId, { to: created.id, ...input });
+    return { employmentId: created.id };
   }
 
   async setRoles(tx: Tx, userId: string, roles: { admin: boolean; hrAll: boolean; hrCompanyIds: string[] }) {

@@ -9,7 +9,7 @@ Gestión de personas **open source y autoalojable**, pensada para grupos de empr
 | Módulo | Lo que hace |
 | --- | --- |
 | **Organización** | Varias sociedades (CIF, CCC), centros de trabajo con zona horaria, departamentos, festivos nacionales/autonómicos/locales, tipos de ausencia del ET editables. Una persona puede tener relaciones laborales en varias sociedades del grupo. |
-| **Personas** | Alta individual o importación desde CSV o Excel (con validación previa y atómica), responsable directo, jornada teórica por día, invitación por email, baja. |
+| **Personas** | Alta individual o importación desde CSV o Excel (con validación previa y atómica), responsable directo, jornada teórica por día, invitación por email, baja, traspaso entre sociedades, checklists de alta, baja y traspaso y campos personalizados. |
 | **Control horario** | Fichaje web, instalable en el móvil como aplicación (entrada, pausa, salida) con la hora del servidor, idempotente. Fichajes **inmutables**: una corrección es un evento nuevo con motivo y autoría. Cadena de hashes por relación laboral, verificación de integridad y **sellos** enviados por email. Turnos que cruzan medianoche y cambios de hora resueltos por zona horaria del centro. |
 | **Turnos** | Plantillas, cuadrante semanal con borradores y publicación, avisos de descanso entre jornadas, jornada máxima y descanso semanal (ET), bolsa de horas y exceso sobre jornada. |
 | **Ausencias** | Vacaciones con saldo prorrateado y ajustes, permisos del ET, bajas médicas. Circuitos de aprobación de varios pasos por sociedad y tipo (responsable, su responsable, RR. HH. o una persona concreta) y delegación por fechas. Los motivos de salud no los ve el responsable. |
@@ -53,7 +53,7 @@ Para producción: pon OpenHR detrás de un proxy HTTPS (Caddy, Traefik, nginx), 
 ```bash
 npm install
 docker compose -f docker-compose.test.yml up -d   # PostgreSQL de pruebas en el puerto 5434
-npm test                                          # 61 tests: unitarios + integración contra PostgreSQL
+npm test                                          # 64 tests: unitarios + integración contra PostgreSQL
 ```
 
 Para trabajar en local con recarga en caliente, arranca solo la base de datos (`docker compose up -d db`), aplica migraciones (`MIGRATION_DATABASE_URL=... npm run db:migrate` tras `npm run build -w apps/api`) y lanza `npm run dev:api` y `npm run dev:web` con las variables de `.env.example`.
@@ -70,7 +70,7 @@ docs/adr      Decisiones de arquitectura
 
 Criterio de salida: el grupo piloto ficha y pide vacaciones durante un mes completo y la gestoría cierra una nómina con la exportación de OpenHR.
 
-Fuera del MVP y pendiente para la V1 comercial: firma electrónica, registro retributivo, canal de denuncias, solicitudes RGPD y purga por retención, OIDC/Microsoft Entra, almacenamiento S3/Azure, despliegue en la nube y migración desde Factorial. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación. Para la V1.1: kiosco, geolocalización y el resto.
+Fuera del MVP y pendiente para la V1 comercial: firma electrónica, registro retributivo, canal de denuncias, solicitudes RGPD y purga por retención, OIDC/Microsoft Entra, almacenamiento S3/Azure, despliegue en la nube y migración desde Factorial. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación, checklists de alta, baja y traspaso y campos personalizados. Para la V1.1: kiosco, geolocalización y el resto.
 
 ## Trabajo con agentes de IA
 

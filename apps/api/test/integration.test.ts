@@ -546,3 +546,77 @@ describe('aprobaciones multinivel y delegación', () => {
     ]);
   });
 });
+
+describe('altas, bajas, traspasos y campos personalizados', () => {
+  let nuriaEmp: string;
+
+  it('al dar de alta se crea el checklist de la plantilla y cada uno ve sus tareas', async () => {
+    await adminAgent
+      .post('/api/checklists/templates')
+      .send({
+        kind: 'onboarding',
+        name: 'Bienvenida',
+        items: [
+          { title: 'Preparar contrato', assignee: 'hr', dueOffsetDays: -3 },
+          { title: 'Presentar al equipo', assignee: 'manager', dueOffsetDays: 0 },
+          { title: 'Leer el manual de acogida', assignee: 'employee', dueOffsetDays: 7 },
+        ],
+      })
+      .expect(201);
+    await marta.post('/api/checklists/templates').send({ kind: 'onboarding', name: 'X', items: [{ title: 'Y', assignee: 'hr' }] }).expect(403);
+    const n = await adminAgent
+      .post('/api/org/employees')
+      .send({ firstName: 'Nuria', lastName: 'Nueva', nationalId: '44444444A', companyId, managerEmploymentId: martaEmp, startDate: '2026-12-01', createAccount: false })
+      .expect(201);
+    nuriaEmp = n.body.employmentId;
+    const lists = (await adminAgent.get(`/api/org/employees/${nuriaEmp}/checklists`).expect(200)).body;
+    expect(lists).toHaveLength(1);
+    expect(lists[0].tasks.map((t: any) => [t.assignee, t.due_date])).toEqual([
+      ['hr', '2026-11-28'],
+      ['manager', '2026-12-01'],
+      ['employee', '2026-12-08'],
+    ]);
+    const martaTasks = (await marta.get('/api/checklists/tasks').expect(200)).body;
+    expect(martaTasks.map((t: any) => t.title)).toEqual(['Presentar al equipo']);
+    const hrTask = lists[0].tasks[0];
+    await marta.post(`/api/checklists/tasks/${hrTask.id}`).send({ done: true }).expect(403);
+    await adminAgent.post(`/api/checklists/tasks/${hrTask.id}`).send({ done: true, note: 'Firmado' }).expect(201);
+    await marta.post(`/api/checklists/tasks/${martaTasks[0].id}`).send({ done: true }).expect(201);
+  });
+
+  it('el traspaso cierra la relación laboral y abre otra en la sociedad de destino', async () => {
+    const other = await adminAgent.post('/api/org/companies').send({ name: 'Demo Dos', legalName: 'Demo Dos SL', taxId: 'B76543210' }).expect(201);
+    await adminAgent
+      .post('/api/checklists/templates')
+      .send({ kind: 'transfer', name: 'Traspaso', items: [{ title: 'Alta en la Seguridad Social de la nueva sociedad', assignee: 'hr' }] })
+      .expect(201);
+    await adminAgent.post(`/api/org/employees/${nuriaEmp}/transfer`).send({ companyId, effectiveDate: '2027-01-01' }).expect(400);
+    const t = await adminAgent.post(`/api/org/employees/${nuriaEmp}/transfer`).send({ companyId: other.body.id, effectiveDate: '2027-01-01', jobTitle: 'Analista' }).expect(201);
+    const old = (await adminAgent.get(`/api/org/employees/${nuriaEmp}`)).body;
+    expect(old.end_date).toBe('2026-12-31');
+    const fresh = (await adminAgent.get(`/api/org/employees/${t.body.employmentId}`)).body;
+    expect(fresh).toMatchObject({ company_name: 'Demo Dos', start_date: '2027-01-01', job_title: 'Analista', transferred_from_employment_id: nuriaEmp });
+    const lists = (await adminAgent.get(`/api/org/employees/${t.body.employmentId}/checklists`)).body;
+    expect(lists[0]).toMatchObject({ kind: 'transfer', name: 'Traspaso' });
+  });
+
+  it('los campos personalizados respetan tipo y visibilidad', async () => {
+    await adminAgent
+      .post('/api/org/custom-fields')
+      .send({ entity: 'person', key: 'talla_camiseta', label: 'Talla de camiseta', type: 'select', options: ['S', 'M', 'L'], visibility: 'employee' })
+      .expect(201);
+    await adminAgent.post('/api/org/custom-fields').send({ entity: 'employment', key: 'coste_hora', label: 'Coste por hora', type: 'number' }).expect(201);
+    await marta.post('/api/org/custom-fields').send({ entity: 'person', key: 'x_y', label: 'X', type: 'text' }).expect(403);
+    await adminAgent.put(`/api/org/employees/${luisEmp}/custom-values`).send({ person: { talla_camiseta: 'XXL' } }).expect(400);
+    await adminAgent.put(`/api/org/employees/${luisEmp}/custom-values`).send({ person: { talla_camiseta: 'M' }, employment: { coste_hora: '18,5' } }).expect(200);
+    const asHr = (await adminAgent.get(`/api/org/employees/${luisEmp}`)).body.custom_fields;
+    expect(asHr.map((f: any) => [f.key, f.value])).toEqual([
+      ['coste_hora', 18.5],
+      ['talla_camiseta', 'M'],
+    ]);
+    const asSelf = (await luis.get(`/api/org/employees/${luisEmp}`)).body.custom_fields;
+    expect(asSelf.map((f: any) => f.key)).toEqual(['talla_camiseta']);
+    const asManager = (await marta.get(`/api/org/employees/${luisEmp}`)).body.custom_fields;
+    expect(asManager.map((f: any) => f.key)).toEqual(['talla_camiseta']);
+  });
+});

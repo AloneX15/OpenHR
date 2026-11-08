@@ -11,6 +11,7 @@ import { Building2Icon } from '@animateicons/react/lucide/building-2-icon';
 import { CalendarDaysIcon } from '@animateicons/react/lucide/calendar-days-icon';
 import { ChartColumnIcon } from '@animateicons/react/lucide/chart-column-icon';
 import { CheckIcon } from '@animateicons/react/lucide/check-icon';
+import { ClipboardCheckIcon } from '@animateicons/react/lucide/clipboard-check-icon';
 import { ClockIcon } from '@animateicons/react/lucide/clock-icon';
 import { DownloadIcon } from '@animateicons/react/lucide/download-icon';
 import { FileTextIcon } from '@animateicons/react/lucide/file-text-icon';
@@ -56,6 +57,7 @@ export const Icons = {
   plus: PlusIcon,
   edit: PencilIcon,
   check: CheckIcon,
+  tasks: ClipboardCheckIcon,
   security: ShieldCheckIcon,
 } satisfies Record<string, AnyIcon>;
 
