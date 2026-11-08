@@ -10,6 +10,8 @@ import { config } from './config';
 export function configureApp(app: NestExpressApplication) {
   app.setGlobalPrefix('api');
   app.use(cookieParser());
+  // SCIM envía application/scim+json.
+  app.useBodyParser('json', { type: ['application/json', 'application/scim+json'], limit: '1mb' });
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.disable('x-powered-by');
   // Defensa CSRF adicional a SameSite=Lax: las peticiones que modifican datos deben venir

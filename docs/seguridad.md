@@ -49,6 +49,10 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - El servidor solo envía a servicios de push conocidos (Chrome, Firefox, Edge, Safari; configurable con `PUSH_ALLOWED_HOSTS`), por https y sin puertos raros: una suscripción manipulada no puede hacer que llame a direcciones internas.
 - El contenido va cifrado de extremo a extremo (Web Push con VAPID). Al enviarse, el outbox borra el texto y las claves de la suscripción. El service worker solo abre rutas de la propia web.
 
+### SCIM
+- El token de SCIM se guarda como huella SHA-256, se puede revocar y solo sirve para su organización. SCIM no asigna roles: solo crea, cambia el email y activa o desactiva cuentas de empleado.
+- «Borrar» por SCIM desactiva (el registro de jornada y la auditoría deben conservarse). La desactivación cierra al momento las sesiones abiertas.
+
 ### Slack y Teams
 - La URL de un webhook es la credencial del canal: se guarda cifrada (AES-256-GCM), no se devuelve nunca por la API y no entra en la auditoría.
 - Solo se admiten dominios de Slack y de flujos de trabajo de Teams, por https; el envío no sigue redirecciones y corta a los 10 segundos.

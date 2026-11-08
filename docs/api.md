@@ -55,6 +55,19 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 
 Cada aviso de la bandeja se envía también a los dispositivos suscritos a través del outbox. Si el servicio responde 404 o 410, la suscripción se borra.
 
+## SCIM 2.0 (`/scim/v2`)
+
+Para el directorio de la empresa (Microsoft Entra ID), con `Authorization: Bearer <token SCIM>` y `application/scim+json`. Detalle en [SCIM con Entra ID](scim.md).
+
+| Método y ruta | Descripción |
+| --- | --- |
+| `GET /scim/v2/ServiceProviderConfig`, `GET /scim/v2/ResourceTypes` | Capacidades del servidor (públicos) |
+| `GET /scim/v2/Users?filter=&startIndex=&count=` | Filtros `userName eq` y `externalId eq` |
+| `GET /scim/v2/Users/:id`, `POST /scim/v2/Users`, `PUT /scim/v2/Users/:id`, `PATCH /scim/v2/Users/:id` | Cuenta de acceso (`userName` = email, `active`, `externalId`, `name`) |
+| `DELETE /scim/v2/Users/:id` | Desactiva la cuenta (204) |
+| `GET /scim/v2/Groups` | Siempre vacío |
+| `GET /scim-tokens`, `POST /scim-tokens`, `DELETE /scim-tokens/:id` | Administración (con sesión): tokens; el token se devuelve una sola vez |
+
 ## Slack y Teams (`/integrations/chat`)
 
 Solo administración.

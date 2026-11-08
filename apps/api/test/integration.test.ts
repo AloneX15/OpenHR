@@ -1256,3 +1256,57 @@ describe('avisos en Slack y Teams', () => {
     await adminAgent.post(`/api/integrations/chat/${hookId}/test`).expect(201);
   });
 });
+
+describe('SCIM (Entra ID)', () => {
+  let token: string;
+  const scim = (method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string) =>
+    (request(server) as any)[method](`/api/scim/v2${path}`).set('Authorization', `Bearer ${token}`).set('Content-Type', 'application/scim+json');
+
+  it('solo administración crea tokens; se ven una vez y se pueden revocar', async () => {
+    await marta.post('/api/scim-tokens').send({ label: 'Entra' }).expect(403);
+    const r = (await adminAgent.post('/api/scim-tokens').send({ label: 'Entra ID' }).expect(201)).body;
+    token = r.token;
+    expect(r.baseUrl).toBe('http://localhost:3000/api/scim/v2');
+    expect(JSON.stringify((await adminAgent.get('/api/scim-tokens')).body)).not.toContain(token);
+    await request(server).get('/api/scim/v2/Users').expect(401);
+    const bad = await request(server).get('/api/scim/v2/Users').set('Authorization', 'Bearer scim_falso').expect(401);
+    expect(bad.body.schemas[0]).toContain('Error');
+  });
+
+  it('crea, busca, actualiza y desactiva cuentas como lo hace Entra ID', async () => {
+    const empty = (await scim('get', '/Users?filter=' + encodeURIComponent('userName eq "carla@demo.test"')).expect(200)).body;
+    expect(empty).toMatchObject({ totalResults: 0, Resources: [] });
+    const created = (
+      await scim('post', '/Users')
+        .send(JSON.stringify({ schemas: ['urn:ietf:params:scim:schemas:core:2.0:User'], userName: 'carla@demo.test', externalId: 'aad-1', name: { givenName: 'Carla', familyName: 'Nueva' }, active: true }))
+        .expect(201)
+    ).body;
+    expect(created).toMatchObject({ userName: 'carla@demo.test', externalId: 'aad-1', active: true });
+    await scim('post', '/Users').send(JSON.stringify({ userName: 'CARLA@demo.test' })).expect(409);
+    await scim('post', '/Users').send(JSON.stringify({ userName: 'luis@demo.test' })).expect(409);
+    expect((await scim('get', '/Users?filter=' + encodeURIComponent('externalId eq "aad-1"'))).body.Resources[0].id).toBe(created.id);
+
+    // RR. HH. da de alta a la persona con ese email: se vincula a la cuenta, sin invitación.
+    await owner.query(`DELETE FROM outbox WHERE type = 'email'`);
+    const emp = (await adminAgent.post('/api/org/employees').send({ firstName: 'Carla', lastName: 'Nueva', nationalId: '66666666Q', email: 'carla@demo.test', companyId, startDate: '2025-02-01' }).expect(201)).body;
+    expect(emp.invited).toBe(false);
+    expect((await owner.query(`SELECT person_id FROM app_user WHERE email = 'carla@demo.test'`)).rows[0].person_id).toBe(emp.personId);
+    expect((await owner.query(`SELECT count(*)::int AS n FROM app_user WHERE lower(email) = 'carla@demo.test'`)).rows[0].n).toBe(1);
+
+    // Desactivar con PATCH revoca el acceso; DELETE también desactiva (no borra).
+    const off = (await scim('patch', `/Users/${created.id}`).send(JSON.stringify({ schemas: ['urn:ietf:params:scim:api:messages:2.0:PatchOp'], Operations: [{ op: 'Replace', path: 'active', value: 'False' }] })).expect(200)).body;
+    expect(off.active).toBe(false);
+    expect((await owner.query(`SELECT is_active FROM app_user WHERE id = $1`, [created.id])).rows[0].is_active).toBe(false);
+    await scim('put', `/Users/${created.id}`).send(JSON.stringify({ userName: 'carla@demo.test', active: true })).expect(200);
+    await scim('delete', `/Users/${created.id}`).expect(204);
+    expect((await scim('get', `/Users/${created.id}`)).body.active).toBe(false);
+    await scim('get', '/Users/00000000-0000-0000-0000-000000000000').expect(404);
+    await scim('get', '/Users?filter=' + encodeURIComponent('displayName co "a"')).expect(400);
+  });
+
+  it('un token revocado deja de servir', async () => {
+    const id = (await adminAgent.get('/api/scim-tokens')).body[0].id;
+    await adminAgent.delete(`/api/scim-tokens/${id}`).expect(200);
+    await scim('get', '/Users').expect(401);
+  });
+});

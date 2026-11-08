@@ -8,6 +8,7 @@ import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
 import { FactorialMigration } from '@/components/FactorialMigration';
 import { OidcSettings } from '@/components/OidcSettings';
 import { ChatIntegrations } from '@/components/ChatIntegrations';
+import { ScimTokens } from '@/components/ScimTokens';
 import { GeoFields, KioskDevices } from '@/components/Kiosk';
 import { ChecklistTemplatesAdmin, CustomFieldsAdmin } from '@/components/Lifecycle';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
@@ -47,7 +48,12 @@ export default function OrganizationPage() {
       {tab === 'checklists' && <ChecklistTemplatesAdmin />}
       {tab === 'campos' && <CustomFieldsAdmin isAdmin={me.isAdmin} />}
       {tab === 'migracion' && me.isAdmin && <FactorialMigration />}
-      {tab === 'acceso' && me.isAdmin && <OidcSettings />}
+      {tab === 'acceso' && me.isAdmin && (
+        <div className="stack">
+          <OidcSettings />
+          <ScimTokens />
+        </div>
+      )}
       {tab === 'integraciones' && me.isAdmin && <ChatIntegrations />}
     </>
   );

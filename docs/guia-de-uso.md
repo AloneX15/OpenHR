@@ -67,6 +67,7 @@
 
 ## Administración
 
+- **Organización → Inicio de sesión → Aprovisionamiento automático (SCIM)**: genera el token para que Entra ID cree y desactive las cuentas solo (ver [SCIM con Entra ID](scim.md)).
 - **Organización → Integraciones**: conecta un canal de Slack (webhook entrante) o de Teams (flujo de trabajo «Publicar en un canal cuando se reciba una solicitud de webhook») y elige qué se publica: anuncios, ausencias aprobadas y bienvenidas. *Probar* envía un mensaje de prueba.
 
 - **Organización → Inicio de sesión**: entrar con la cuenta de Microsoft 365 (o Google) de la empresa; incluye los pasos para registrar la aplicación en Entra ID.

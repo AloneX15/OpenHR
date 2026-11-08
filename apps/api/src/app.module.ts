@@ -14,6 +14,7 @@ import { OrgModule } from './org/org.module';
 import { PayModule } from './pay/pay.module';
 import { PrivacyModule } from './privacy/privacy.module';
 import { MigrationModule } from './migration/migration.module';
+import { ScimModule } from './scim/scim.controller';
 import { ShiftsModule } from './shifts/shifts.module';
 import { TimeModule } from './time/time.module';
 
@@ -30,7 +31,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, IntegrationsModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule, MigrationModule, ExpensesModule],
+  imports: [DbModule, IntegrationsModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule, MigrationModule, ExpensesModule, ScimModule],
   controllers: [HealthController],
 })
 export class AppModule {}

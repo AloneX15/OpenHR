@@ -129,6 +129,11 @@ Sin sociedad ni centro = festivo de todo el grupo (los nacionales se cargan solo
 | `session_version` | integer | Se incrementa por trigger al cambiar contraseña, MFA, email o al desactivar: revoca las sesiones |
 | `last_login_at` | timestamptz? | |
 
+Columnas añadidas en la migración 019: `scim_external_id` (identificador en Entra ID, único por organización) y `updated_at`. Una cuenta creada por SCIM puede no tener `person_id` hasta que RR. HH. da de alta la ficha con el mismo email.
+
+#### `scim_token`
+Tokens de SCIM de la organización: `label`, `token_hash` (SHA-256), `last_used_at` y `revoked_at`.
+
 #### `role_assignment`
 | Columna | Tipo | Notas |
 | --- | --- | --- |
@@ -335,6 +340,8 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `outbox_claim(limit)` | Reservar emails pendientes (`FOR UPDATE SKIP LOCKED`, arrendamiento de 5 min) |
 | `outbox_finish(id, error)` | Marcar enviado (y borrar el cuerpo) o programar reintento con espera exponencial |
 
+- `scim_token_lookup(hash)`: organización de un token de SCIM no revocado, antes de tener contexto de tenant.
+
 ## Migraciones
 
 | Fichero | Contenido |
@@ -357,6 +364,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `016_expenses.sql` | Categorías de gasto (con las de partida para cada grupo) y gastos con justificante y aprobación |
 | `017_web_push.sql` | Suscripciones push por navegador y redacción del outbox también para los push enviados |
 | `018_chat_webhooks.sql` | Canales de Slack y Teams (`chat_webhook`) con la URL cifrada |
+| `019_scim.sql` | Tokens de SCIM, `app_user.scim_external_id` y `updated_at`, y `scim_token_lookup()` |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

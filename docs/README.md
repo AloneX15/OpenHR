@@ -5,6 +5,7 @@
 | [Guía de uso](guia-de-uso.md) | Personas usuarias | Cómo fichar, pedir ausencias, repartir nóminas y exportar, por rol |
 | [Despliegue](despliegue.md) | Quien instala | Docker Compose, variables de entorno, HTTPS, copias de seguridad, actualizaciones |
 | [Migración desde Factorial](migracion-factorial.md) | Quien instala | Qué se importa por API y cómo |
+| [SCIM con Entra ID](scim.md) | Quien instala | Altas y bajas automáticas de cuentas desde Microsoft Entra ID |
 | [Despliegue en Azure](despliegue-azure.md) | Quien instala | Terraform: Container Apps, PostgreSQL privado, Blob Storage con identidad gestionada |
 | [Arquitectura](arquitectura.md) | Desarrollo | Piezas, módulos, flujo de una petición y decisiones |
 | [Base de datos](base-de-datos.md) | Desarrollo | Roles, RLS, diagrama entidad-relación, todas las tablas, funciones y migraciones |

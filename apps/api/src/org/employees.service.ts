@@ -243,7 +243,13 @@ export class EmployeesService {
     const email = input.email ?? person.email;
     if (input.createAccount && email) {
       const existing = await tx.maybeOne('SELECT id FROM app_user WHERE person_id = $1', [person.id]);
-      if (!existing) {
+      const provisioned = existing
+        ? null
+        : await tx.maybeOne('SELECT id FROM app_user WHERE person_id IS NULL AND lower(email) = lower($1)', [email]);
+      if (provisioned) {
+        // Cuenta creada antes por SCIM (Entra ID): se vincula; entra con su cuenta corporativa.
+        await tx.query('UPDATE app_user SET person_id = $2, updated_at = now() WHERE id = $1', [provisioned.id, person.id]);
+      } else if (!existing) {
         const user = await tx.one(
           `INSERT INTO app_user (tenant_id, person_id, email) VALUES ($1, $2, $3) RETURNING id`,
           [tx.tenantId, person.id, email],
