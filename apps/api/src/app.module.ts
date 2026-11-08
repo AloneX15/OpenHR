@@ -17,6 +17,7 @@ import { MigrationModule } from './migration/migration.module';
 import { ScimModule } from './scim/scim.controller';
 import { ShiftsModule } from './shifts/shifts.module';
 import { SurveysModule } from './surveys/surveys.module';
+import { TicketsModule } from './tickets/tickets.module';
 import { TimeModule } from './time/time.module';
 
 @Controller()
@@ -32,7 +33,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, IntegrationsModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule, MigrationModule, ExpensesModule, ScimModule, SurveysModule],
+  imports: [DbModule, IntegrationsModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule, MigrationModule, ExpensesModule, ScimModule, SurveysModule, TicketsModule],
   controllers: [HealthController],
 })
 export class AppModule {}

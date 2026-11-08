@@ -14,6 +14,9 @@ Gestión de personas **open source y autoalojable**, pensada para grupos de empr
 | **Turnos** | Plantillas, cuadrante semanal con borradores y publicación, avisos de descanso entre jornadas, jornada máxima y descanso semanal (ET), bolsa de horas y exceso sobre jornada. |
 | **Ausencias** | Vacaciones con saldo prorrateado y ajustes, permisos del ET, bajas médicas. Circuitos de aprobación de varios pasos por sociedad y tipo (responsable, su responsable, RR. HH. o una persona concreta) y delegación por fechas. Los motivos de salud no los ve el responsable. |
 | **Comunicación y firma** | Anuncios con confirmación de lectura, políticas con aceptación por versión y firma electrónica simple con código por email y hoja de evidencias. |
+| **Gastos** | Foto del ticket o kilometraje (0,26 €/km), aprobación del responsable y de RR. HH., CSV para la nómina y marcado como abonado |
+| **Encuestas y consultas** | Encuestas anónimas o con nombre con eNPS y resultados protegidos por un mínimo de respuestas. Consultas a RR. HH. con bandeja, asignación, notas internas y adjuntos |
+| **Integraciones** | Inicio de sesión con Microsoft 365 (OpenID Connect), altas y bajas de cuentas por SCIM desde Entra ID, avisos en Slack y Teams, avisos push en el navegador, kiosco de fichaje con PIN o QR |
 | **Privacidad y cumplimiento** | Descarga de mis datos y solicitudes de derechos (RGPD), plazos de conservación con purga y anonimización, canal de denuncias anónimo y cifrado (Ley 2/2023). |
 | **Nóminas** | Se sube el PDF de la gestoría; OpenHR detecta el DNI/NIE de cada página y propone a quién va. **Nada se publica sin revisión humana página a página.** Cada persona descarga la suya en «Mis documentos», con acuse de lectura. |
 | **Informes** | Registro de jornada en CSV (por sociedad o por persona), variables de nómina mensuales para la gestoría y registro retributivo (RD 902/2020). Cada exportación queda auditada con su huella SHA-256. |
@@ -63,7 +66,7 @@ Para producción: pon OpenHR detrás de un proxy HTTPS (Caddy, Traefik, nginx), 
 ```bash
 npm install
 docker compose -f docker-compose.test.yml up -d   # PostgreSQL de pruebas en el puerto 5434
-npm test                                          # 113 tests: unitarios + integración contra PostgreSQL
+npm test                                          # 116 tests: unitarios + integración contra PostgreSQL
 ```
 
 Para trabajar en local con recarga en caliente, arranca solo la base de datos (`docker compose up -d db`), aplica migraciones (`MIGRATION_DATABASE_URL=... npm run db:migrate` tras `npm run build -w apps/api`) y lanza `npm run dev:api` y `npm run dev:web` con las variables de `.env.example`.
@@ -80,7 +83,7 @@ docs/adr      Decisiones de arquitectura
 
 Criterio de salida: el grupo piloto ficha y pide vacaciones durante un mes completo y la gestoría cierra una nómina con la exportación de OpenHR.
 
-V1.1 en curso: inicio de sesión con Microsoft 365, kiosco de fichaje, geolocalización, fichaje sin conexión, gastos, avisos push, integración con Slack y Teams, SCIM y encuestas hechos. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación, checklists de alta, baja y traspaso, campos personalizados, anuncios, políticas, firma individual, registro retributivo, RGPD, canal de denuncias, almacenamiento S3/Azure Blob, despliegue en Azure con Terraform y migración desde Factorial por API. Para la V1.1: kiosco, geolocalización y el resto.
+V1.1 completa: inicio de sesión con Microsoft 365 y SCIM, kiosco de fichaje con PIN o QR, geolocalización, fichaje sin conexión, gastos, avisos push, Slack y Teams, encuestas con eNPS y consultas a RR. HH. Ya hecho de la V1: turnos con reglas de descanso, bolsa de horas, aprobaciones multinivel y delegación, checklists de alta, baja y traspaso, campos personalizados, anuncios, políticas, firma individual, registro retributivo, RGPD, canal de denuncias, almacenamiento S3/Azure Blob, despliegue en Azure con Terraform y migración desde Factorial por API.
 
 ## Trabajo con agentes de IA
 

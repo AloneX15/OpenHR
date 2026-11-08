@@ -32,6 +32,7 @@ import { SettingsIcon } from '@animateicons/react/lucide/settings-icon';
 import { ShieldCheckIcon } from '@animateicons/react/lucide/shield-check-icon';
 import { ShieldUserIcon } from '@animateicons/react/lucide/shield-user-icon';
 import { LockIcon } from '@animateicons/react/lucide/lock-icon';
+import { LifeBuoyIcon } from '@animateicons/react/lucide/life-buoy-icon';
 import { SunIcon } from '@animateicons/react/lucide/sun-icon';
 import { TimerIcon } from '@animateicons/react/lucide/timer-icon';
 import { UploadIcon } from '@animateicons/react/lucide/upload-icon';
@@ -67,6 +68,7 @@ export const Icons = {
   check: CheckIcon,
   tasks: ClipboardCheckIcon,
   surveys: ClipboardListIcon,
+  tickets: LifeBuoyIcon,
   announcements: MegaphoneIcon,
   policies: ScrollTextIcon,
   sign: SignatureIcon,

@@ -291,6 +291,17 @@ Quién ha respondido, para no responder dos veces. Sin hora ni enlace con la res
 #### `survey_response`
 `answers` (objeto pregunta → valor) y `submitted_on` (solo el día). `user_id` solo en las encuestas con nombre.
 
+### Consultas a RR. HH.
+
+#### `ticket_category`
+Temas de consulta del grupo. Cada grupo empieza con Nómina, Contrato y documentos, Certificados, Vacaciones y ausencias, Datos personales y Otros.
+
+#### `ticket`
+`number` (correlativo), `company_id`, `requester_user_id`, `category_id`, `subject`, `status` (`open`, `in_progress`, `waiting`, `resolved`, `closed`), `priority` (`normal`, `high`), `assignee_user_id` y `resolved_at`.
+
+#### `ticket_message`
+Mensajes de la conversación con `internal` (nota solo para RR. HH.) y `file_id` opcional.
+
 ### Comunicación y firma
 
 #### `announcement` y `announcement_read`
@@ -381,6 +392,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `018_chat_webhooks.sql` | Canales de Slack y Teams (`chat_webhook`) con la URL cifrada |
 | `019_scim.sql` | Tokens de SCIM, `app_user.scim_external_id` y `updated_at`, y `scim_token_lookup()` |
 | `020_surveys.sql` | Encuestas, preguntas, participación y respuestas (anónimas o con nombre) |
+| `021_tickets.sql` | Consultas a RR. HH.: temas (con los de partida), consultas y mensajes |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

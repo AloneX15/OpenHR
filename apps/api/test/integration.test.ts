@@ -1372,3 +1372,55 @@ describe('encuestas', () => {
     expect(r.respondents).toEqual([{ name: 'Luis Empleado', answers: expect.objectContaining({ [qs[2].id]: 'Jueves' }) }]);
   });
 });
+
+describe('consultas a RR. HH.', () => {
+  let ticketId: string;
+
+  it('la persona abre una consulta con adjunto; RR. HH. recibe el aviso', async () => {
+    const cats = (await luis.get('/api/tickets/categories').expect(200)).body;
+    const payroll = cats.find((c: any) => c.name === 'Nómina').id;
+    const t = (
+      await luis
+        .post('/api/tickets')
+        .field('categoryId', payroll)
+        .field('subject', 'Falta el plus de transporte')
+        .field('body', 'En la nómina de octubre no aparece.')
+        .attach('file', Buffer.from('captura'), { filename: 'nomina.txt', contentType: 'text/plain' })
+        .expect(201)
+    ).body;
+    ticketId = t.id;
+    expect(Number(t.number)).toBeGreaterThan(0);
+    await luis.post('/api/tickets').field('categoryId', payroll).field('subject', 'x').field('body', 'y').field('companyId', '00000000-0000-0000-0000-000000000000').expect(400);
+    const n = await owner.query(`SELECT u.email FROM notification n JOIN app_user u ON u.id = n.user_id WHERE n.type = 'ticket.created'`);
+    expect(n.rows.map((r) => r.email)).toContain('ana@demo.test');
+    expect((await luis.get('/api/tickets/mine')).body[0]).toMatchObject({ subject: 'Falta el plus de transporte', status: 'open' });
+  });
+
+  it('solo la persona y RR. HH. la ven; las notas internas no llegan a la persona', async () => {
+    await marta.get(`/api/tickets/${ticketId}`).expect(404);
+    await marta.get('/api/tickets').expect(403);
+    expect((await adminAgent.get('/api/tickets')).body.map((t: any) => t.id)).toContain(ticketId);
+    await adminAgent.post(`/api/tickets/${ticketId}/messages`).field('body', 'Revisar con la gestoría').field('internal', 'true').expect(201);
+    await luis.post(`/api/tickets/${ticketId}/messages`).field('body', 'Intento interno').field('internal', 'true').expect(403);
+    const r = (await adminAgent.post(`/api/tickets/${ticketId}/messages`).field('body', 'Lo revisamos y te decimos.').expect(201)).body;
+    expect(r.status).toBe('in_progress');
+    const seen = (await luis.get(`/api/tickets/${ticketId}`)).body;
+    expect(seen.messages.map((m: any) => m.body)).toEqual(['En la nómina de octubre no aparece.', 'Lo revisamos y te decimos.']);
+    expect(seen.assignee_name).toBe('Ana Admin');
+    const fileMsg = seen.messages[0];
+    expect((await luis.get(`/api/tickets/${ticketId}/messages/${fileMsg.id}/file`).expect(200)).text).toBe('captura');
+  });
+
+  it('RR. HH. la resuelve; la persona puede reabrirla al responder o cerrarla', async () => {
+    await luis.patch(`/api/tickets/${ticketId}`).send({ priority: 'high' }).expect(403);
+    await adminAgent.patch(`/api/tickets/${ticketId}`).send({ assigneeUserId: (await owner.query(`SELECT id FROM app_user WHERE email = 'luis@demo.test'`)).rows[0].id }).expect(400);
+    await adminAgent.patch(`/api/tickets/${ticketId}`).send({ status: 'resolved', priority: 'high' }).expect(200);
+    expect((await luis.get(`/api/tickets/${ticketId}`)).body).toMatchObject({ status: 'resolved', priority: 'high' });
+    const reopened = (await luis.post(`/api/tickets/${ticketId}/messages`).field('body', 'Sigue sin aparecer').expect(201)).body;
+    expect(reopened.status).toBe('open');
+    await luis.patch(`/api/tickets/${ticketId}`).send({ status: 'closed' }).expect(200);
+    await luis.post(`/api/tickets/${ticketId}/messages`).field('body', 'otra').expect(400);
+    const notes = await owner.query(`SELECT n.type FROM notification n JOIN app_user u ON u.id = n.user_id WHERE u.email = 'luis@demo.test' AND n.type LIKE 'ticket.%'`);
+    expect(notes.rows.map((r) => r.type)).toEqual(expect.arrayContaining(['ticket.reply', 'ticket.status']));
+  });
+});

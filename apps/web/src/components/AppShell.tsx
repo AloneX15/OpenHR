@@ -24,6 +24,7 @@ const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boole
   { href: '/organizacion', label: 'Organización', icon: 'organization', show: (m) => m.isHr },
   { href: '/informes', label: 'Informes', icon: 'reports', show: (m) => m.isHr },
   { href: '/canal-denuncias', label: 'Canal de denuncias', icon: 'whistleblowing', show: (m) => m.isCompliance },
+  { href: '/consultas', label: 'Consultas a RR. HH.', icon: 'tickets', show: (m) => m.employments.length > 0 || m.isHr },
   { href: '/privacidad', label: 'Privacidad', icon: 'privacy', show: () => true },
 ];
 

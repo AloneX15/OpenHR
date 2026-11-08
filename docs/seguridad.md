@@ -49,6 +49,10 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - El servidor solo envía a servicios de push conocidos (Chrome, Firefox, Edge, Safari; configurable con `PUSH_ALLOWED_HOSTS`), por https y sin puertos raros: una suscripción manipulada no puede hacer que llame a direcciones internas.
 - El contenido va cifrado de extremo a extremo (Web Push con VAPID). Al enviarse, el outbox borra el texto y las claves de la suscripción. El service worker solo abre rutas de la propia web.
 
+### Consultas a RR. HH.
+- Solo ven una consulta quien la abrió y RR. HH. de su sociedad (para el resto, no existe: 404). Las notas internas y sus adjuntos nunca se devuelven a la persona.
+- Los adjuntos solo pueden ser imágenes, PDF o texto de hasta 10 MB, y se sirven con `nosniff`.
+
 ### Encuestas anónimas
 - La respuesta no guarda quién la dio ni la hora (solo el día); la participación (para no responder dos veces) va en otra tabla sin enlace con la respuesta. Los comentarios se muestran desordenados y no se enseña ningún resultado por debajo del mínimo de respuestas (5 por defecto).
 - Límite conocido: quien administre directamente PostgreSQL podría intentar cruzar ambas tablas por el orden físico o el identificador de transacción. La aplicación nunca lo hace y RR. HH. no tiene acceso a la base de datos.

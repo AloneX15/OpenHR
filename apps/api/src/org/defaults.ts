@@ -42,6 +42,9 @@ export async function createTenantDefaults(tx: Tx) {
       [tx.tenantId, c.name, c.kind, c.rate, c.receipt],
     );
   }
+  for (const name of ['Nómina', 'Contrato y documentos', 'Certificados', 'Vacaciones y ausencias', 'Datos personales', 'Otros']) {
+    await tx.query('INSERT INTO ticket_category (tenant_id, name) VALUES ($1, $2) ON CONFLICT (tenant_id, name) DO NOTHING', [tx.tenantId, name]);
+  }
   const year = new Date().getUTCFullYear();
   for (const y of [year, year + 1]) await addNationalHolidays(tx, y);
 }

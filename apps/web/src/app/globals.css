@@ -361,3 +361,8 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 .scale-opt input { position: absolute; opacity: 0; pointer-events: none; }
 .scale-opt:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .scale-opt.on { background: var(--accent); border-color: var(--accent); color: var(--on-primary); }
+
+/* Consultas a RR. HH. */
+.ticket-msg.hr { border-left: 3px solid var(--accent); }
+.ticket-msg.internal { border-left: 3px solid var(--warning); background: var(--surface-2); }
+.ticket-reply { margin-top: 16px; }

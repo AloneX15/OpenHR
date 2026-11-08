@@ -128,6 +128,16 @@ _Avoid_: Firma, confirmación
 Datos del mes por relación laboral (días, horas y ausencias) que la gestoría necesita para calcular la nómina.
 _Avoid_: Incidencias de nómina, novedades
 
+## Consultas
+
+**Consulta**:
+Pregunta o petición que una persona hace a RR. HH. y que se sigue hasta resolverla. En el código, `ticket`.
+_Avoid_: Ticket, incidencia (en la interfaz)
+
+**Nota interna**:
+Mensaje de una consulta que solo ve RR. HH.
+_Avoid_: Comentario privado
+
 ## Encuestas
 
 **Encuesta**:

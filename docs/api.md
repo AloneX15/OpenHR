@@ -228,6 +228,20 @@ Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `s
 | `POST /surveys/:id/delete` | H (A si ya se lanzó) | |
 | `GET /surveys/:id/results` | H | Participación, media y distribución, eNPS (promotores 9–10 menos detractores 0–6), recuento por opción y comentarios desordenados. Anónima con menos de `minResponses` respuestas: `hidden: true` sin datos. Con nombre: también `respondents` |
 
+## Consultas a RR. HH. (`/tickets`)
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /tickets/categories?all=` | Todos | Temas; `POST`/`PATCH /tickets/categories` para A o RR. HH. del grupo |
+| `POST /tickets` | E | Multipart: `categoryId, subject, body, companyId?` (una de mis sociedades) y `file` opcional (imagen, PDF o texto, 10 MB). Avisa a RR. HH. de la sociedad |
+| `GET /tickets/mine` | E | Mis consultas |
+| `GET /tickets?status=active\|open\|…&mine=` | H | Bandeja: pendientes (abiertas, en curso y esperando respuesta) primero por prioridad |
+| `GET /tickets/:id` | Solicitante / H | Consulta con la conversación; las notas internas solo para RR. HH. |
+| `POST /tickets/:id/messages` | Solicitante / H | Multipart: `body`, `internal` (solo RR. HH.) y `file`. Si responde RR. HH., pasa a «en curso» y se la asigna; si responde la persona en una resuelta o en espera, se reabre |
+| `PATCH /tickets/:id` | H (la persona: solo cerrar o reabrir una resuelta) | `{ status?, assigneeUserId?, priority?, categoryId? }`. Solo se asigna a RR. HH. de la sociedad |
+| `GET /tickets/:id/assignees` | H | Personas a las que se puede asignar |
+| `GET /tickets/:id/messages/:messageId/file` | Solicitante / H | Adjunto |
+
 ## Retribución y registro retributivo
 
 | Método y ruta | Quién | Descripción |
