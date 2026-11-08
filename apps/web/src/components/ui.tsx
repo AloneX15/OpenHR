@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { useHoverIcon } from './icons';
 
 /** Carga datos y expone recarga; los errores se muestran con <ErrorBox>. */
 export function useLoad<T>(loader: () => Promise<T>, deps: unknown[] = []) {
@@ -49,7 +50,7 @@ export function useAction() {
 export function ErrorBox({ error }: { error: string | null | undefined }) {
   if (!error) return null;
   return (
-    <div className="alert alert-error" role="alert">
+    <div className="alert alert-error" role="alert" aria-live="assertive">
       {error}
     </div>
   );
@@ -96,6 +97,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  const close = useHoverIcon('close', 18);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -106,8 +108,8 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
       <div className="modal" role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="btn-icon" onClick={onClose} aria-label="Cerrar">
-            ×
+          <button className="btn-icon" onClick={onClose} aria-label="Cerrar" {...close.handlers}>
+            {close.icon}
           </button>
         </div>
         {children}

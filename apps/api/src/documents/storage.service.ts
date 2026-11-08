@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { config } from '../config';
 import { sha256 } from '../common/crypto';
 import { Tx } from '../db/db.service';
@@ -21,7 +21,7 @@ class LocalDiskStorage implements StorageAdapter {
 
   private path(key: string) {
     const p = resolve(join(this.root, key));
-    if (!p.startsWith(this.root)) throw new Error('Clave de almacenamiento no válida');
+    if (!p.startsWith(this.root + sep)) throw new Error('Clave de almacenamiento no válida');
     return p;
   }
 

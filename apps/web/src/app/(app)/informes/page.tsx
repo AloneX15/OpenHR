@@ -1,5 +1,6 @@
 'use client';
 
+import { IconButton } from '@/components/icons';
 import { useState } from 'react';
 import { Card, Empty, ErrorBox, Field, Notice, PageHeader, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
@@ -46,13 +47,14 @@ export default function ReportsPage() {
               <input type="date" value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} />
             </Field>
           </div>
-          <button
+          <IconButton
+            icon="download"
             className="btn btn-primary"
             disabled={action.busy || !company}
             onClick={() => action.run(() => download(`/exports/time-register?companyId=${company}&from=${range.from}&to=${range.to}`))}
           >
             Descargar CSV
-          </button>
+          </IconButton>
         </Card>
         <Card title="Variables de nómina">
           <p className="muted">
@@ -62,13 +64,14 @@ export default function ReportsPage() {
           <Field label="Mes">
             <input type="month" value={period} onChange={(e) => setPeriod(e.target.value)} />
           </Field>
-          <button
+          <IconButton
+            icon="download"
             className="btn btn-primary"
             disabled={action.busy || !company}
             onClick={() => action.run(() => download(`/exports/payroll-variables?companyId=${company}&period=${period}`))}
           >
             Descargar CSV
-          </button>
+          </IconButton>
         </Card>
         <Card
           title="Sellos del registro de jornada"

@@ -1,0 +1,248 @@
+# Base de datos
+
+OpenHR usa **PostgreSQL 17** con SQL directo (sin ORM). El esquema vive en `apps/api/migrations/*.sql`, que se aplican en orden alfabético con `apps/api/src/db/migrate.ts`.
+
+## Roles de base de datos
+
+| Rol | Para qué | Privilegios |
+| --- | --- | --- |
+| Propietario (`POSTGRES_OWNER_USER`, por defecto `openhr_owner`) | Ejecutar migraciones. | Dueño de tablas y funciones. En la imagen oficial de PostgreSQL es superusuario. |
+| `openhr_app` | Conexión de la API. Lo crea `migrate.ts` con la contraseña `OPENHR_APP_DB_PASSWORD`. | `LOGIN NOSUPERUSER NOBYPASSRLS`. Lectura y escritura en tablas, salvo las append-only (solo lectura e inserción). Sujeto a RLS. |
+
+## Aislamiento entre organizaciones (RLS)
+
+- La función `app_tenant_id()` devuelve `current_setting('app.tenant_id')` como `uuid`, o `NULL` si no está fijado.
+- `enable_tenant_rls(tabla)` activa RLS y crea la política `tenant_isolation`: `USING (tenant_id = app_tenant_id()) WITH CHECK (tenant_id = app_tenant_id())`.
+- La API fija el contexto en cada transacción con `set_config('app.tenant_id', $1, true)` y `set_config('app.user_id', $2, true)` (`Db.tx()` en `apps/api/src/db/db.service.ts`).
+- Un test de integración falla si alguna tabla con columna `tenant_id` no tiene RLS.
+
+Más detalle en [ADR 0001](adr/0001-tenancy-rls.md).
+
+## Diagrama entidad-relación
+
+```mermaid
+erDiagram
+  tenant ||--o{ company : tiene
+  company ||--o{ work_center : tiene
+  company ||--o{ department : tiene
+  tenant ||--o{ person : tiene
+  person ||--o| app_user : "accede con"
+  app_user ||--o{ role_assignment : tiene
+  company |o--o{ role_assignment : "limita a"
+  person ||--o{ employment : "trabaja en"
+  company ||--o{ employment : emplea
+  work_center |o--o{ employment : ubica
+  department |o--o{ employment : agrupa
+  employment |o--o{ employment : "responsable de"
+  employment ||--o{ time_entry : ficha
+  time_entry |o--o| time_entry : anula
+  company ||--o{ time_chain_seal : sella
+  employment ||--o{ absence_request : solicita
+  absence_type ||--o{ absence_request : clasifica
+  employment ||--o{ vacation_adjustment : ajusta
+  person ||--o{ document : recibe
+  stored_file ||--o{ document : contiene
+  company ||--o{ payslip_batch : sube
+  stored_file ||--o{ payslip_batch : original
+  payslip_batch ||--o{ payslip_page : divide
+  person |o--o{ payslip_page : "asignada a"
+  company |o--o{ holiday : "festivo de"
+  work_center |o--o{ holiday : "festivo de"
+  app_user ||--o{ notification : recibe
+```
+
+## Tablas
+
+Convenciones: claves primarias `uuid` generadas con `gen_random_uuid()` (salvo `audit_event` y `outbox`, `bigserial`); marcas de tiempo `timestamptz` en UTC; fechas civiles `date` (la API las devuelve como texto `AAAA-MM-DD`); toda tabla de negocio lleva `tenant_id` con RLS.
+
+### Organización
+
+#### `tenant`
+Instalación lógica: normalmente un grupo de empresas. Solo se crea con `setup_create_tenant()`.
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `name` | text | Nombre del grupo |
+| `created_at` | timestamptz | |
+
+RLS: política `tenant_self` (`id = app_tenant_id()`). La app no puede insertar ni borrar.
+
+#### `company` — sociedad
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `id`, `tenant_id` | uuid | |
+| `name` | text | Nombre corto |
+| `legal_name` | text | Razón social |
+| `tax_id` | text | CIF. Único por tenant |
+| `ccc` | text? | Código de cuenta de cotización |
+| `address` | text? | |
+
+#### `work_center` — centro de trabajo
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `company_id` | uuid | FK `company` |
+| `name` | text | |
+| `timezone` | text | IANA, por defecto `Europe/Madrid`. Decide a qué día cuenta cada fichaje |
+| `region` | text? | Comunidad autónoma (ISO 3166-2:ES) |
+| `address` | text? | |
+
+#### `department`
+`company_id`, `name` (único por sociedad).
+
+#### `holiday` — festivos
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `company_id` | uuid? | Festivo de una sociedad |
+| `work_center_id` | uuid? | Festivo local de un centro |
+| `date` | date | |
+| `name` | text | |
+
+Sin sociedad ni centro = festivo de todo el grupo (los nacionales se cargan solos para el año actual y el siguiente).
+
+#### `absence_type` — tipos de ausencia
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `code` | text | Único por tenant (`VAC`, `AP`, `IT`, `MAT`, `FAM`, `FALL`, `MUD`, `DEB`, `NR` de partida) |
+| `name` | text | |
+| `paid` | boolean | Retribuido |
+| `counts_as_vacation` | boolean | Descuenta del saldo de vacaciones |
+| `requires_approval` | boolean | Si es `false`, queda aprobada al registrarla (p. ej. IT) |
+| `day_unit` | text | `working` (laborables) o `calendar` (naturales) |
+| `sensitive` | boolean | Dato de salud: el responsable no ve el tipo ni el comentario |
+| `active` | boolean | |
+
+### Personas y accesos
+
+#### `person` — persona física
+`first_name`, `last_name`, `national_id` (DNI/NIE, único por tenant), `email`, `phone`, `birth_date`. Una persona puede tener varias relaciones laborales en el grupo.
+
+#### `app_user` — cuenta de acceso
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `person_id` | uuid? | FK `person` |
+| `email` | text | Único en toda la instalación (`lower(email)`) para iniciar sesión sin elegir organización |
+| `password_hash` | text? | bcrypt (coste 12). `NULL` hasta aceptar la invitación |
+| `totp_secret` | text? | Secreto TOTP cifrado con AES-256-GCM (`ENCRYPTION_KEY`) |
+| `totp_enabled` | boolean | |
+| `is_active` | boolean | |
+| `session_version` | integer | Se incrementa por trigger al cambiar contraseña, MFA, email o al desactivar: revoca las sesiones |
+| `last_login_at` | timestamptz? | |
+
+#### `role_assignment`
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `user_id` | uuid | |
+| `company_id` | uuid? | `NULL` = todo el tenant |
+| `role` | text | `admin` o `hr` |
+
+Ser empleado o responsable no necesita fila: se deriva de `employment`.
+
+#### `employment` — relación laboral
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `person_id`, `company_id` | uuid | |
+| `work_center_id`, `department_id` | uuid? | Deben ser de la misma sociedad (lo comprueba la API) |
+| `manager_employment_id` | uuid? | Responsable directo (otra relación laboral) |
+| `employee_number`, `job_title`, `contract_type` | text? | |
+| `start_date`, `end_date` | date | `end_date` nula = vigente |
+| `weekly_minutes` | integer | Jornada semanal |
+| `schedule` | jsonb | Minutos de jornada teórica por día ISO: `{"1":480,…,"7":0}` |
+| `vacation_days_per_year` | numeric(5,1) | Días laborables al año (prorrateados el primer y último año) |
+| `time_chain_head`, `time_chain_seq` | text, bigint | Cabeza de la cadena de fichajes |
+
+### Registro de jornada
+
+#### `time_entry` — fichajes (append-only)
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `employment_id` | uuid | |
+| `seq` | bigint | Posición en la cadena. Único por relación laboral |
+| `kind` | text | `in`, `out`, `break_start`, `break_end`, `void` |
+| `occurred_at` | timestamptz | Hora del servidor (fichaje real) o declarada (manual) |
+| `recorded_at` | timestamptz | Cuándo se registró |
+| `device_time` | timestamptz? | Hora que decía el dispositivo (informativa) |
+| `source` | text | `clock`, `manual`, `import` |
+| `voids_entry_id` | uuid? | Fichaje que anula (solo `void`; un fichaje solo se anula una vez) |
+| `reason` | text? | Obligatorio salvo `source = clock` |
+| `created_by` | uuid | Usuario que lo registró |
+| `idempotency_key` | text? | Único por tenant: reintentos sin duplicados |
+| `content_digest`, `prev_hash`, `hash` | text | Cadena: `hash = sha256(prev_hash ‖ content_digest)` |
+
+Protecciones: el rol `openhr_app` no tiene `UPDATE` ni `DELETE`, y los triggers `time_entry_no_update` y `time_entry_no_truncate` lo impiden incluso al propietario. Ver [ADR 0002](adr/0002-time-entry-hash-chain.md).
+
+#### `time_chain_seal` — sellos (append-only)
+`company_id`, `sealed_at`, `heads` (jsonb `{employment_id: {seq, hash}}`), `digest` (SHA-256), `sent_to` (emails).
+
+### Ausencias
+
+#### `absence_request`
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `employment_id`, `absence_type_id` | uuid | |
+| `start_date`, `end_date` | date | Inclusive |
+| `days` | numeric(5,1) | Calculados al solicitar con la jornada y los festivos |
+| `status` | text | `pending`, `approved`, `rejected`, `cancelled` |
+| `comment`, `decision_comment` | text? | |
+| `requested_by`, `decided_by`, `decided_at` | | |
+
+#### `vacation_adjustment`
+Ajustes manuales del saldo por año (`days` positivo o negativo, `reason` obligatorio).
+
+### Documentos y nóminas
+
+#### `stored_file`
+Metadatos de un fichero guardado en el almacenamiento (disco en el MVP): `storage_key`, `filename`, `content_type`, `size_bytes`, `sha256` (se comprueba al leer).
+
+#### `document` — «Mis documentos»
+`person_id`, `company_id`, `file_id`, `category` (`payslip`, `contract`, `certificate`, `other`), `title`, `period` (`AAAA-MM`), `batch_id`, `published_at`, `first_read_at` (acuse de lectura: primera descarga de la propia persona).
+
+#### `payslip_batch`
+Un PDF con las nóminas de una sociedad y un mes: `period`, `file_id`, `page_count`, `status` (`review`, `published`, `discarded`), `published_by`, `published_at`.
+
+#### `payslip_page`
+Una fila por página: `detected_ids` (DNI/NIE válidos encontrados), `suggested_person_id`, `person_id`, `review_status` (`pending`, `confirmed`, `skipped`). Una página confirmada debe tener persona; el lote no se publica con páginas pendientes.
+
+### Sistema
+
+#### `audit_event` (append-only)
+`actor_id`, `action` (p. ej. `employee.created`, `time.voided`, `export.time_register`), `entity`, `entity_id`, `data` (jsonb), `created_at`.
+
+#### `notification`
+Bandeja de cada usuario: `type`, `title`, `body`, `link`, `read_at`.
+
+#### `outbox`
+Cola transaccional de emails: `type`, `payload`, `attempts`, `last_error`, `available_at`, `processed_at`. Al enviarse, el cuerpo se borra y solo quedan destinatario y asunto.
+
+#### `schema_migrations`
+`name`, `checksum`, `applied_at`. Una migración aplicada no puede cambiar (el checksum lo detecta).
+
+## Funciones `SECURITY DEFINER`
+
+Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fijo y `EXECUTE` revocado a `PUBLIC`.
+
+| Función | Uso |
+| --- | --- |
+| `auth_find_user(email)` | Inicio de sesión y recuperación de contraseña |
+| `auth_session_check(user_id, tenant_id)` | Validar en cada petición que la cuenta está activa y la versión de sesión |
+| `setup_create_tenant(name)` | Configuración inicial; falla si ya existe algún tenant |
+| `setup_is_done()` | ¿Está configurada la instalación? |
+| `outbox_claim(limit)` | Reservar emails pendientes (`FOR UPDATE SKIP LOCKED`, arrendamiento de 5 min) |
+| `outbox_finish(id, error)` | Marcar enviado (y borrar el cuerpo) o programar reintento con espera exponencial |
+
+## Migraciones
+
+| Fichero | Contenido |
+| --- | --- |
+| `001_core.sql` | Tenant, sociedades, centros, departamentos, personas, usuarios, roles, relaciones laborales, festivos, auditoría, notificaciones, outbox |
+| `002_time_tracking.sql` | Fichajes inmutables y sellos |
+| `003_absences.sql` | Tipos y solicitudes de ausencia, ajustes de vacaciones |
+| `004_documents.sql` | Ficheros, documentos, lotes y páginas de nómina |
+| `005_security.sql` | RLS, permisos del rol de aplicación y funciones definer |
+| `006_session_hardening.sql` | Versión de sesión, comprobación de sesión y borrado del cuerpo de los emails enviados |
+
+Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
+
+## Retención (pendiente para la V1)
+
+El registro de jornada se conserva 4 años. La purga por periodos sellados y la anonimización se describen en [ADR 0002](adr/0002-time-entry-hash-chain.md).

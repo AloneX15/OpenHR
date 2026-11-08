@@ -67,7 +67,7 @@ afterAll(async () => {
 
 describe('puesta en marcha y organización', () => {
   it('crea la instalación y la persona administradora', async () => {
-    expect((await request(server).get('/api/setup/status')).body).toEqual({ done: false });
+    expect((await request(server).get('/api/setup/status')).body).toMatchObject({ done: false });
     await adminAgent
       .post('/api/setup')
       .send({
@@ -80,7 +80,7 @@ describe('puesta en marcha y organización', () => {
         password: 'password-segura-1',
       })
       .expect(201);
-    expect((await request(server).get('/api/setup/status')).body).toEqual({ done: true });
+    expect((await request(server).get('/api/setup/status')).body).toMatchObject({ done: true });
     await request(server).post('/api/setup').send({}).expect(403);
     const me = await adminAgent.get('/api/auth/me').expect(200);
     expect(me.body).toMatchObject({ isAdmin: true, tenantName: 'Grupo Demo', email: 'ana@demo.test' });
@@ -143,6 +143,35 @@ describe('puesta en marcha y organización', () => {
     const asManager = await marta.get(`/api/org/employees/${luisEmp}`).expect(200);
     expect(asManager.body.national_id).toBeUndefined();
     await luis.post('/api/org/companies').send({ name: 'X', legalName: 'X', taxId: 'B87654321' }).expect(403);
+  });
+});
+
+describe('sesiones', () => {
+  it('cambiar la contraseña revoca las demás sesiones y renueva la actual', async () => {
+    const other = request.agent(server);
+    await other.post('/api/auth/login').send({ email: 'luis@demo.test', password: 'una-contraseña-larga' }).expect(200);
+    await other.get('/api/auth/me').expect(200);
+    await luis.post('/api/auth/password').send({ current: 'una-contraseña-larga', next: 'otra-contraseña-larga' }).expect(200);
+    await other.get('/api/auth/me').expect(401);
+    await luis.get('/api/auth/me').expect(200);
+  });
+
+  it('una cuenta desactivada pierde la sesión al instante', async () => {
+    const { rows } = await owner.query(`SELECT id FROM app_user WHERE email = 'marta@demo.test'`);
+    await owner.query('UPDATE app_user SET is_active = false WHERE id = $1', [rows[0].id]);
+    await marta.get('/api/auth/me').expect(401);
+    await owner.query('UPDATE app_user SET is_active = true WHERE id = $1', [rows[0].id]);
+    marta = await loginWithToken('marta@demo.test');
+  });
+
+  it('el registro de auditoría es solo para administración', async () => {
+    await marta.get('/api/org/audit').expect(403);
+    await adminAgent.get('/api/org/audit').expect(200);
+  });
+
+  it('no se revela si un email existe en otra organización', async () => {
+    const r = await adminAgent.post('/api/org/employees').send({ firstName: 'D', lastName: 'Up', email: 'marta@demo.test', companyId, startDate: '2025-01-01' });
+    expect(JSON.stringify(r.body)).not.toContain('Key (');
   });
 });
 

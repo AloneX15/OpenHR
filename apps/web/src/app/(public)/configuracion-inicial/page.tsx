@@ -15,18 +15,23 @@ export default function SetupPage() {
     lastName: '',
     email: '',
     password: '',
+    setupToken: '',
   });
+  const [tokenRequired, setTokenRequired] = useState(false);
   const { busy, error, run } = useAction();
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
   useEffect(() => {
-    api.get<{ done: boolean }>('/setup/status').then((s) => s.done && router.replace('/login')).catch(() => undefined);
+    api
+      .get<{ done: boolean; tokenRequired?: boolean }>('/setup/status')
+      .then((s) => (s.done ? router.replace('/login') : setTokenRequired(Boolean(s.tokenRequired))))
+      .catch(() => undefined);
   }, [router]);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void run(async () => {
-      await api.post('/setup', f);
+      await api.post('/setup', { ...f, setupToken: f.setupToken || undefined });
       router.replace('/organizacion');
     });
   };
@@ -44,6 +49,11 @@ export default function SetupPage() {
         </p>
         <form onSubmit={submit}>
           <ErrorBox error={error} />
+          {tokenRequired && (
+            <Field label="Token de configuración" hint="Es el valor de SETUP_TOKEN en el fichero .env del servidor.">
+              <input required type="password" value={f.setupToken} onChange={set('setupToken')} autoComplete="off" />
+            </Field>
+          )}
           <Field label="Nombre del grupo u organización">
             <input required value={f.organizationName} onChange={set('organizationName')} placeholder="Grupo Ejemplo" />
           </Field>

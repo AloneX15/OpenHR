@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { z } from 'zod';
-import { assertAdmin, assertEmploymentAccess, assertHr, audit, isHrAnywhere, loadActor } from '../common/access';
+import { assertAdmin, assertEmploymentAccess, assertHr, audit, loadActor } from '../common/access';
 import { CurrentUser, parse, SessionUser, zDate, zUuid } from '../common/http';
 import { Db, Tx } from '../db/db.service';
 import { AuthService } from '../auth/auth.service';
@@ -335,8 +335,8 @@ export class OrgController {
   @Get('audit')
   auditLog(@CurrentUser() u: SessionUser, @Query('entity') entity?: string, @Query('entityId') entityId?: string) {
     return this.run(u, async (tx) => {
-      const actor = await loadActor(tx);
-      if (!isHrAnywhere(actor)) throw new ForbiddenException();
+      // El registro de auditoría abarca todas las sociedades: solo administración.
+      assertAdmin(await loadActor(tx));
       return tx.query(
         `SELECT a.*, coalesce(p.first_name || ' ' || p.last_name, us.email) AS actor_name
            FROM audit_event a

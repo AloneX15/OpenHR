@@ -5,18 +5,19 @@ import { SessionUser } from '../common/http';
 
 export const SESSION_COOKIE = 'openhr_session';
 
-export function signSession(user: SessionUser): string {
-  return jwt.sign({ tid: user.tenantId, typ: 'session' }, config.jwtSecret, {
+export function signSession(user: SessionUser, sessionVersion: number): string {
+  return jwt.sign({ tid: user.tenantId, typ: 'session', sv: sessionVersion }, config.jwtSecret, {
+    algorithm: 'HS256',
     subject: user.userId,
     expiresIn: `${config.sessionHours}h`,
   });
 }
 
-export function verifySession(token: string): SessionUser | null {
+export function verifySession(token: string): (SessionUser & { sv: number }) | null {
   try {
-    const p = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
-    if (p.typ !== 'session' || !p.sub || !p.tid) return null;
-    return { userId: p.sub, tenantId: p.tid };
+    const p = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
+    if (p.typ !== 'session' || !p.sub || !p.tid || typeof p.sv !== 'number') return null;
+    return { userId: p.sub, tenantId: p.tid, sv: p.sv };
   } catch {
     return null;
   }
@@ -24,12 +25,12 @@ export function verifySession(token: string): SessionUser | null {
 
 /** Reto intermedio entre contraseña correcta y código MFA (5 minutos). */
 export function signMfaChallenge(user: SessionUser): string {
-  return jwt.sign({ tid: user.tenantId, typ: 'mfa' }, config.jwtSecret, { subject: user.userId, expiresIn: '5m' });
+  return jwt.sign({ tid: user.tenantId, typ: 'mfa' }, config.jwtSecret, { subject: user.userId, expiresIn: '5m', algorithm: 'HS256' });
 }
 
 export function verifyMfaChallenge(token: string): SessionUser | null {
   try {
-    const p = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
+    const p = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (p.typ !== 'mfa' || !p.sub) return null;
     return { userId: p.sub, tenantId: p.tid };
   } catch {
@@ -45,13 +46,13 @@ export function signPasswordToken(user: SessionUser, currentHash: string | null,
   return jwt.sign(
     { tid: user.tenantId, typ: 'pwd', pwv: sha256(currentHash ?? '').slice(0, 16) },
     config.jwtSecret,
-    { subject: user.userId, expiresIn: `${days}d` },
+    { subject: user.userId, expiresIn: `${days}d`, algorithm: 'HS256' },
   );
 }
 
 export function verifyPasswordToken(token: string): (SessionUser & { pwv: string }) | null {
   try {
-    const p = jwt.verify(token, config.jwtSecret) as jwt.JwtPayload;
+    const p = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (p.typ !== 'pwd' || !p.sub) return null;
     return { userId: p.sub, tenantId: p.tid, pwv: p.pwv };
   } catch {

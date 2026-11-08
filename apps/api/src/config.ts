@@ -26,7 +26,11 @@ export const config = {
     password: process.env.SMTP_PASSWORD ?? '',
     from: process.env.SMTP_FROM ?? 'OpenHR <no-reply@openhr.local>',
   },
-  secureCookies: process.env.SECURE_COOKIES === 'true',
+  // Cookies solo por HTTPS: por defecto, si la URL pública es https.
+  secureCookies: process.env.SECURE_COOKIES ? process.env.SECURE_COOKIES === 'true' : (process.env.PUBLIC_URL ?? '').startsWith('https://'),
+  // Si se define, la configuración inicial exige este token (evita que otra persona
+  // reclame una instalación recién expuesta a la red).
+  setupToken: process.env.SETUP_TOKEN ?? '',
   sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   outboxWorker: process.env.OUTBOX_WORKER !== 'false',
 };

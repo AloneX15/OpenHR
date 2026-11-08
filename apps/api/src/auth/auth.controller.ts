@@ -1,10 +1,17 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { config } from '../config';
 import { CurrentUser, parse, Public, SessionUser } from '../common/http';
 import { AuthService } from './auth.service';
 import { SESSION_COOKIE, signSession } from './session';
+
+function safeEqual(a: string, b: string) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
 
 const zEmail = z.string().trim().toLowerCase().email('Email no válido');
 
@@ -12,11 +19,12 @@ const zEmail = z.string().trim().toLowerCase().email('Email no válido');
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  private setSession(res: Response, user: SessionUser) {
-    res.cookie(SESSION_COOKIE, signSession(user), {
+  private async setSession(res: Response, user: SessionUser) {
+    res.cookie(SESSION_COOKIE, signSession(user, await this.auth.sessionVersion(user)), {
       httpOnly: true,
       sameSite: 'lax',
       secure: config.secureCookies,
+      // __Host- no se usa para no romper instalaciones por HTTP en red local.
       maxAge: config.sessionHours * 3600 * 1000,
       path: '/',
     });
@@ -25,7 +33,7 @@ export class AuthController {
   @Public()
   @Get('setup/status')
   async setupStatus() {
-    return { done: await this.auth.setupDone() };
+    return { done: await this.auth.setupDone(), tokenRequired: Boolean(config.setupToken) };
   }
 
   @Public()
@@ -44,8 +52,11 @@ export class AuthController {
       }),
       body,
     );
+    if (config.setupToken && !safeEqual(String((body as any)?.setupToken ?? ''), config.setupToken)) {
+      throw new ForbiddenException('Token de configuración incorrecto');
+    }
     const user = await this.auth.setup(input);
-    this.setSession(res, user);
+    await this.setSession(res, user);
     return { ok: true };
   }
 
@@ -56,7 +67,7 @@ export class AuthController {
     const { email, password } = parse(z.object({ email: zEmail, password: z.string().min(1) }), body);
     const result = await this.auth.login(email, password, req.ip ?? '');
     if ('mfaRequired' in result) return result;
-    this.setSession(res, result.user);
+    await this.setSession(res, result.user);
     return { ok: true };
   }
 
@@ -65,7 +76,7 @@ export class AuthController {
   @HttpCode(200)
   async mfa(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const { challenge, code } = parse(z.object({ challenge: z.string(), code: z.string() }), body);
-    this.setSession(res, await this.auth.completeMfa(challenge, code));
+    await this.setSession(res, await this.auth.completeMfa(challenge, code));
     return { ok: true };
   }
 
@@ -91,7 +102,7 @@ export class AuthController {
   @HttpCode(200)
   async setPassword(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const { token, password } = parse(z.object({ token: z.string(), password: z.string() }), body);
-    this.setSession(res, await this.auth.setPasswordWithToken(token, password));
+    await this.setSession(res, await this.auth.setPasswordWithToken(token, password));
     return { ok: true };
   }
 
@@ -102,9 +113,11 @@ export class AuthController {
 
   @Post('auth/password')
   @HttpCode(200)
-  async changePassword(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+  async changePassword(@CurrentUser() user: SessionUser, @Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const { current, next } = parse(z.object({ current: z.string(), next: z.string() }), body);
     await this.auth.changePassword(user, current, next);
+    // El cambio revoca las demás sesiones; esta se renueva.
+    await this.setSession(res, user);
     return { ok: true };
   }
 
@@ -115,17 +128,19 @@ export class AuthController {
 
   @Post('auth/mfa/enable')
   @HttpCode(200)
-  async mfaEnable(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+  async mfaEnable(@CurrentUser() user: SessionUser, @Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const { code } = parse(z.object({ code: z.string() }), body);
     await this.auth.mfaEnable(user, code);
+    await this.setSession(res, user);
     return { ok: true };
   }
 
   @Post('auth/mfa/disable')
   @HttpCode(200)
-  async mfaDisable(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+  async mfaDisable(@CurrentUser() user: SessionUser, @Body() body: unknown, @Res({ passthrough: true }) res: Response) {
     const { password } = parse(z.object({ password: z.string() }), body);
     await this.auth.mfaDisable(user, password);
+    await this.setSession(res, user);
     return { ok: true };
   }
 }

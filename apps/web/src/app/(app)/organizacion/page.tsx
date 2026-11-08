@@ -1,5 +1,6 @@
 'use client';
 
+import { IconButton } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
@@ -43,9 +44,9 @@ function People() {
     <div className="grid grid-2">
       <Card title="Alta individual">
         <p className="muted">Da de alta a una persona en una sociedad. Si ya trabaja en otra sociedad del grupo, se reutiliza su ficha por el DNI.</p>
-        <button className="btn btn-primary" onClick={() => setCreating(true)}>
+        <IconButton icon="plus" className="btn btn-primary" onClick={() => setCreating(true)}>
           Nueva persona
-        </button>
+        </IconButton>
       </Card>
       <ImportCard />
       {creating && (

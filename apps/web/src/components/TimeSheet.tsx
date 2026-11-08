@@ -3,6 +3,7 @@
 import { FormEvent, Fragment, useState } from 'react';
 import { api, download } from '@/lib/api';
 import { addDays, dayLabel, KIND_LABEL, monthBounds, shortHm, timeIn, todayIso, weekStart } from '@/lib/format';
+import { IconButton } from './icons';
 import { Badge, Card, ErrorBox, Field, Modal, Notice, Tabs, useAction, useLoad } from './ui';
 
 type View = 'week' | 'month';
@@ -61,22 +62,23 @@ export function TimeSheet({ employmentId, canEdit, canExport = true }: { employm
         <Tabs<View> value={view} onChange={setView} tabs={[{ id: 'week', label: 'Semana' }, { id: 'month', label: 'Mes' }]} />
         <div className="row">
           {canEdit && (
-            <button className="btn btn-sm" onClick={() => setAdding(todayIso())}>
-              + Añadir fichaje olvidado
-            </button>
+            <IconButton icon="plus" className="btn btn-sm" onClick={() => setAdding(todayIso())}>
+              Añadir fichaje olvidado
+            </IconButton>
           )}
           {canExport && (
-            <button
+            <IconButton
+              icon="download"
               className="btn btn-sm"
               disabled={exportAction.busy}
               onClick={() => exportAction.run(() => download(`/exports/time-register?employmentId=${employmentId}&from=${range.from}&to=${range.to}`))}
             >
               Descargar registro
-            </button>
+            </IconButton>
           )}
-          <button className="btn btn-sm btn-ghost" onClick={async () => setVerify(await api.get(`/time/employments/${employmentId}/verify`))}>
+          <IconButton icon="security" className="btn btn-sm btn-ghost" onClick={async () => setVerify(await api.get(`/time/employments/${employmentId}/verify`))}>
             Comprobar integridad
-          </button>
+          </IconButton>
         </div>
       </div>
       <ErrorBox error={error || exportAction.error} />

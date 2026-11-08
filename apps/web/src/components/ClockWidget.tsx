@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, newIdempotencyKey } from '@/lib/api';
 import { hhmm, timeIn, todayIso } from '@/lib/format';
 import { Me } from '@/lib/session';
+import { IconButton } from './icons';
 import { ErrorBox, useAction, useLoad } from './ui';
 
 type State = 'out' | 'working' | 'break';
@@ -53,28 +54,28 @@ function EmploymentClock({ employment, showCompany }: { employment: Me['employme
       <ErrorBox error={error || action.error} />
       <div className="clock-actions">
         {state === 'out' && (
-          <button className="btn btn-success btn-lg" disabled={action.busy} onClick={() => clock('in')}>
+          <IconButton icon="timer" size={20} className="btn btn-success btn-lg" disabled={action.busy} onClick={() => clock('in')}>
             Fichar entrada
-          </button>
+          </IconButton>
         )}
         {state === 'working' && (
           <>
-            <button className="btn btn-lg" disabled={action.busy} onClick={() => clock('break_start')}>
+            <IconButton icon="clock" size={20} className="btn btn-lg" disabled={action.busy} onClick={() => clock('break_start')}>
               Pausa
-            </button>
-            <button className="btn btn-primary btn-lg" disabled={action.busy} onClick={() => clock('out')}>
+            </IconButton>
+            <IconButton icon="logout" size={20} className="btn btn-primary btn-lg" disabled={action.busy} onClick={() => clock('out')}>
               Fichar salida
-            </button>
+            </IconButton>
           </>
         )}
         {state === 'break' && (
           <>
-            <button className="btn btn-success btn-lg" disabled={action.busy} onClick={() => clock('break_end')}>
+            <IconButton icon="timer" size={20} className="btn btn-success btn-lg" disabled={action.busy} onClick={() => clock('break_end')}>
               Volver de la pausa
-            </button>
-            <button className="btn btn-lg" disabled={action.busy} onClick={() => clock('out')}>
+            </IconButton>
+            <IconButton icon="logout" size={20} className="btn btn-lg" disabled={action.busy} onClick={() => clock('out')}>
               Fichar salida
-            </button>
+            </IconButton>
           </>
         )}
       </div>

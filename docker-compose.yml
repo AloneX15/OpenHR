@@ -46,7 +46,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
-      SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      SECURE_COOKIES: ${SECURE_COOKIES:-}
+      SETUP_TOKEN: ${SETUP_TOKEN:-}
       STORAGE_DIR: /data/storage
       SMTP_HOST: ${SMTP_HOST:-mailpit}
       SMTP_PORT: ${SMTP_PORT:-1025}
@@ -80,7 +81,7 @@ services:
     image: axllent/mailpit:latest
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:${MAIL_UI_PORT:-8025}:8025"
 
 volumes:
   db-data:

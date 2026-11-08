@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "OpenHR: gestión de RR. HH. open source y autoalojable para grupos de empresas en España",
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "dev:api": "npm run dev -w apps/api",
     "dev:web": "npm run dev -w apps/web",
@@ -11,5 +13,10 @@
     "test": "npm test -w apps/api",
     "db:migrate": "npm run migrate -w apps/api"
   },
-  "engines": { "node": ">=22" }
+  "engines": {
+    "node": ">=22"
+  },
+  "overrides": {
+    "multer": "2.5.0"
+  }
 }

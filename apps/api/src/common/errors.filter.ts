@@ -23,7 +23,8 @@ export class ErrorsFilter implements ExceptionFilter {
       '42501': [403, 'Operación no permitida'],
     };
     const mapped = err?.code ? pg[err.code] : undefined;
-    if (mapped) return res.status(mapped[0]).json({ message: mapped[1], detail: err.detail ?? undefined });
+    // No se devuelve err.detail: puede revelar datos (p. ej. que un email existe en otra organización).
+    if (mapped) return res.status(mapped[0]).json({ message: mapped[1] });
     this.log.error(err?.stack ?? String(err));
     return res.status(500).json({ message: 'Error interno' });
   }

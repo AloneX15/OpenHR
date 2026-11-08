@@ -14,7 +14,12 @@ Gestión de personas **open source y autoalojable**, pensada para grupos de empr
 | **Ausencias** | Vacaciones con saldo prorrateado y ajustes, permisos del ET, bajas médicas. Aprobación de un nivel (responsable o RR. HH.). Los motivos de salud no los ve el responsable. |
 | **Nóminas** | Se sube el PDF de la gestoría; OpenHR detecta el DNI/NIE de cada página y propone a quién va. **Nada se publica sin revisión humana página a página.** Cada persona descarga la suya en «Mis documentos», con acuse de lectura. |
 | **Informes** | Registro de jornada en CSV (por sociedad o por persona) y variables de nómina mensuales para la gestoría. Cada exportación queda auditada con su huella SHA-256. |
-| **Seguridad** | Aislamiento entre organizaciones con Row Level Security de PostgreSQL, rol de base de datos sin privilegios, verificación en dos pasos (TOTP), auditoría de acciones, cookies `HttpOnly` + `SameSite`, comprobación de origen. |
+| **Seguridad** | Aislamiento entre organizaciones con Row Level Security de PostgreSQL, rol de base de datos sin privilegios, verificación en dos pasos (TOTP), sesiones revocables, auditoría de acciones, CSP y comprobación de origen. Ver [seguridad](docs/seguridad.md). |
+| **Interfaz** | Azul marino con acentos celeste, tema Claro / Oscuro / Sistema e iconos animados de AnimateIcons. Ver [diseño](docs/diseno.md). |
+
+## Documentación
+
+Toda la documentación está en [docs/](docs/README.md): [guía de uso](docs/guia-de-uso.md), [despliegue](docs/despliegue.md), [arquitectura](docs/arquitectura.md), [base de datos](docs/base-de-datos.md), [API](docs/api.md), [seguridad](docs/seguridad.md), [diseño](docs/diseno.md) y [desarrollo](docs/desarrollo.md).
 
 ## Puesta en marcha con Docker Compose
 
@@ -24,7 +29,7 @@ Requisitos: Docker con Compose v2.
 git clone https://github.com/AloneX15/OpenHR.git
 cd OpenHR
 cp .env.example .env
-# Edita .env: cambia TODAS las contraseñas y secretos (openssl rand -hex 32)
+# Edita .env: cambia TODAS las contraseñas y secretos y define SETUP_TOKEN (ver docs/despliegue.md)
 docker compose up -d --build
 ```
 
@@ -47,7 +52,7 @@ Para producción: pon OpenHR detrás de un proxy HTTPS (Caddy, Traefik, nginx), 
 ```bash
 npm install
 docker compose -f docker-compose.test.yml up -d   # PostgreSQL de pruebas en el puerto 5434
-npm test                                          # 43 tests: unitarios + integración contra PostgreSQL
+npm test                                          # 47 tests: unitarios + integración contra PostgreSQL
 ```
 
 Para trabajar en local con recarga en caliente, arranca solo la base de datos (`docker compose up -d db`), aplica migraciones (`MIGRATION_DATABASE_URL=... npm run db:migrate` tras `npm run build -w apps/api`) y lanza `npm run dev:api` y `npm run dev:web` con las variables de `.env.example`.

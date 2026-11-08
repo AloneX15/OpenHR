@@ -1,5 +1,6 @@
 'use client';
 
+import { IconButton } from '@/components/icons';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
@@ -80,9 +81,9 @@ function PayslipBatches() {
     <Card
       title="Lotes de nóminas"
       actions={
-        <button className="btn btn-primary" onClick={() => setUploading(true)}>
+        <IconButton icon="upload" className="btn btn-primary" onClick={() => setUploading(true)}>
           Subir PDF de nóminas
-        </button>
+        </IconButton>
       }
     >
       <p className="muted">
