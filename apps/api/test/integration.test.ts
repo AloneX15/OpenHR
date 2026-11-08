@@ -495,3 +495,54 @@ describe('turnos y bolsa de horas', () => {
     expect(b1.body.adjustments[0]).toMatchObject({ minutes: 600, kind: 'opening' });
   });
 });
+
+describe('aprobaciones multinivel y delegación', () => {
+  let apId: string;
+  const day = (offset: number) => nextWeekday(offset);
+
+  it('un circuito de dos pasos pasa del responsable a RR. HH.', async () => {
+    apId = (await luis.get('/api/org/absence-types')).body.find((t: any) => t.code === 'AP').id;
+    await marta.put('/api/approvals/flows').send({ steps: [{ kind: 'manager' }, { kind: 'hr' }] }).expect(403);
+    await adminAgent.put('/api/approvals/flows').send({ absenceTypeId: apId, steps: [{ kind: 'manager' }, { kind: 'hr' }] }).expect(200);
+    const d = day(60);
+    const r = await luis.post('/api/absences').send({ absenceTypeId: apId, startDate: d, endDate: d }).expect(201);
+    expect(r.body.status).toBe('pending');
+    // RR. HH. aún no tiene el paso, pero puede intervenir; el responsable sí lo tiene.
+    const step1 = await marta.post(`/api/absences/${r.body.id}/approve`).send({ comment: 'Por mi parte, sí' }).expect(201);
+    expect(step1.body.status).toBe('pending');
+    const mine = (await luis.get('/api/absences/mine')).body.find((x: any) => x.id === r.body.id);
+    expect(mine.steps.map((s: any) => [s.kind, s.status])).toEqual([
+      ['manager', 'approved'],
+      ['hr', 'pending'],
+    ]);
+    await marta.post(`/api/absences/${r.body.id}/approve`).send({}).expect(403);
+    const step2 = await adminAgent.post(`/api/absences/${r.body.id}/approve`).send({}).expect(201);
+    expect(step2.body.status).toBe('approved');
+  });
+
+  it('una persona delegada aprueba en nombre del responsable', async () => {
+    const pedro = await loginWithToken('pedro@demo.test');
+    const { rows } = await owner.query(`SELECT id FROM app_user WHERE email = 'pedro@demo.test'`);
+    await marta.post('/api/approvals/delegations').send({ toUserId: rows[0].id, startDate: today, endDate: today, reason: 'Vacaciones' }).expect(201);
+    const vac = (await luis.get('/api/org/absence-types')).body.find((t: any) => t.code === 'VAC').id;
+    const d = day(70);
+    const r = await luis.post('/api/absences').send({ absenceTypeId: vac, startDate: d, endDate: d }).expect(201);
+    const pending = await pedro.get('/api/absences/pending').expect(200);
+    expect(pending.body.map((p: any) => p.id)).toContain(r.body.id);
+    const ok = await pedro.post(`/api/absences/${r.body.id}/approve`).send({}).expect(201);
+    expect(ok.body.status).toBe('approved');
+    const steps = (await luis.get('/api/absences/mine')).body.find((x: any) => x.id === r.body.id).steps;
+    expect(steps[0]).toMatchObject({ status: 'approved', decided_as: 'delegate', decided_by_name: 'Pedro Ruiz' });
+  });
+
+  it('si el paso no tiene a nadie (sin responsable) pasa a RR. HH.', async () => {
+    // Marta no tiene responsable: su solicitud va directamente a RR. HH.
+    const d = day(80);
+    const r = await marta.post('/api/absences').send({ absenceTypeId: apId, startDate: d, endDate: d }).expect(201);
+    const steps = (await marta.get('/api/absences/mine')).body.find((x: any) => x.id === r.body.id).steps;
+    expect(steps.map((s: any) => [s.kind, s.status])).toEqual([
+      ['manager', 'skipped'],
+      ['hr', 'pending'],
+    ]);
+  });
+});

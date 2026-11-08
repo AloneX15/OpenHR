@@ -319,3 +319,5 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 .shift-amber { border-left-color: var(--shift-amber); } .shift-violet { border-left-color: var(--shift-violet); } .shift-rose { border-left-color: var(--shift-rose); }
 .shift-slate { border-left-color: var(--shift-slate); } .shift-off { border-left-color: var(--border); color: var(--muted); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; border-left: 10px solid; vertical-align: middle; }
+
+.steps { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; }

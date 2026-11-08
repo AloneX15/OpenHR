@@ -6,9 +6,10 @@ import { Badge, Card, Empty, ErrorBox, Field, Modal, PageHeader, Tabs, useAction
 import { api } from '@/lib/api';
 import { addDays, dayLabel, monthBounds, STATUS_LABEL, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { ApprovalSteps, Delegations } from '@/components/Approvals';
 import { RequestModal } from '@/components/RequestModal';
 
-type Tab = 'mias' | 'aprobar' | 'equipo';
+type Tab = 'mias' | 'aprobar' | 'equipo' | 'delegaciones';
 const STATUS_TONE: Record<string, any> = { pending: 'warning', approved: 'success', rejected: 'danger', cancelled: 'neutral' };
 
 function AbsencesContent() {
@@ -17,7 +18,8 @@ function AbsencesContent() {
   const initial = (useSearchParams().get('tab') as Tab) || 'mias';
   const [tab, setTab] = useState<Tab>(canApprove ? initial : 'mias');
   const tabs: { id: Tab; label: string }[] = [{ id: 'mias', label: 'Mis ausencias' }];
-  if (canApprove) tabs.push({ id: 'aprobar', label: 'Por aprobar' }, { id: 'equipo', label: 'Calendario del equipo' });
+  if (canApprove)
+    tabs.push({ id: 'aprobar', label: 'Por aprobar' }, { id: 'equipo', label: 'Calendario del equipo' }, { id: 'delegaciones', label: 'Delegaciones' });
 
   return (
     <>
@@ -26,6 +28,7 @@ function AbsencesContent() {
       {tab === 'mias' && <MyAbsences />}
       {tab === 'aprobar' && <Approvals />}
       {tab === 'equipo' && <TeamCalendar />}
+      {tab === 'delegaciones' && <Delegations />}
     </>
   );
 }
@@ -115,6 +118,7 @@ function MyAbsences() {
                     <td className="num">{Number(r.days)}</td>
                     <td>
                       <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+                      <ApprovalSteps steps={r.steps} />
                       {r.decision_comment && <div className="small muted">«{r.decision_comment}»</div>}
                     </td>
                     <td className="num">
@@ -174,7 +178,10 @@ function Approvals() {
                     {r.person_name}
                     <div className="small muted">{r.company_name}</div>
                   </td>
-                  <td>{r.type_name}</td>
+                  <td>
+                    {r.type_name}
+                    <ApprovalSteps steps={r.steps} />
+                  </td>
                   <td>
                     {dayLabel(r.start_date)} → {dayLabel(r.end_date)}
                   </td>

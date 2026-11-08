@@ -104,9 +104,23 @@ Las reglas comprobadas son las del Estatuto de los Trabajadores por defecto: 12 
 | `GET /absences/team?from=&to=` | R / H | Calendario del equipo (motivos sensibles ocultos al responsable) |
 | `GET /absences/balance/:employmentId?year=` | E / R / H | `{ entitled, adjustments, approved, pending, available }` |
 | `POST /absences` | E / H | `{ absenceTypeId, startDate, endDate, comment?, employmentId? }`. RR. HH. la registra ya aprobada |
-| `POST /absences/:id/approve`, `POST /absences/:id/reject` | R / H | `{ comment? }`. Nadie aprueba lo suyo |
+| `POST /absences/:id/approve`, `POST /absences/:id/reject` | Aprobador del paso actual, su delegado o H | `{ comment? }` → `{ status }`: `pending` si quedan pasos, `approved` o `rejected`. Nadie aprueba lo suyo |
 | `POST /absences/:id/cancel` | E / H | La persona solo antes de que empiece |
 | `POST /absences/adjustments` | H | `{ employmentId, year, days, reason }` |
+
+## Aprobaciones (`/approvals`)
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /approvals/flows` | S | Circuitos configurados |
+| `PUT /approvals/flows` | H (sociedad) / A (general) | `{ companyId?, absenceTypeId?, steps: [{ kind, userId? }] }` (crea o sustituye) |
+| `DELETE /approvals/flows/:id` | H / A | |
+| `GET /approvals/delegations` | S | Delegaciones recientes en las que participo (administración ve todas) |
+| `POST /approvals/delegations` | S | `{ toUserId, startDate, endDate, reason? }`. Administración puede indicar `fromUserId` |
+| `DELETE /approvals/delegations/:id` | Quien delega / A | |
+| `GET /approvals/candidates` | S | Personas con cuenta activa (para delegar o nombrar aprobadoras) |
+
+Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `steps`: cada paso con su tipo, estado, aprobadores y quién decidió y en calidad de qué.
 
 ## Documentos y nóminas
 

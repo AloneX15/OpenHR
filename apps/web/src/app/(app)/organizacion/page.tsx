@@ -3,13 +3,14 @@
 import { IconButton } from '@/components/icons';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
+import { ApprovalFlows } from '@/components/Approvals';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
 import { dayLabel, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias';
+type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones';
 
 export default function OrganizationPage() {
   const { me } = useSession();
@@ -26,6 +27,7 @@ export default function OrganizationPage() {
           { id: 'centros', label: 'Centros y departamentos' },
           { id: 'festivos', label: 'Festivos' },
           { id: 'ausencias', label: 'Tipos de ausencia' },
+          { id: 'aprobaciones', label: 'Circuitos de aprobación' },
         ]}
       />
       {tab === 'personas' && <People />}
@@ -33,6 +35,7 @@ export default function OrganizationPage() {
       {tab === 'centros' && <Centers />}
       {tab === 'festivos' && <Holidays isAdmin={me.isAdmin} />}
       {tab === 'ausencias' && <AbsenceTypes isAdmin={me.isAdmin} />}
+      {tab === 'aprobaciones' && <ApprovalFlows isAdmin={me.isAdmin} />}
     </>
   );
 }

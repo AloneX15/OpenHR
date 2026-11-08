@@ -4,6 +4,7 @@ import { EmploymentCalendar, isEmployed, isWorkingDay, loadCalendars } from '../
 import { eachDay } from '../common/dates';
 import { Tx } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ApprovalsService } from './approvals.service';
 
 export function countAbsenceDays(cal: EmploymentCalendar, unit: 'working' | 'calendar', start: string, end: string): number {
   let n = 0;
@@ -39,7 +40,10 @@ const REQUEST_FROM = `absence_request r
 
 @Injectable()
 export class AbsencesService {
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly approvals: ApprovalsService,
+  ) {}
 
   async balance(tx: Tx, actor: Actor, employmentId: string, year: number) {
     await assertEmploymentAccess(tx, actor, employmentId);
@@ -135,13 +139,10 @@ export class AbsencesService {
       [employmentId],
     );
     const range = input.startDate === input.endDate ? `el ${input.startDate}` : `del ${input.startDate} al ${input.endDate}`;
+    let status: 'pending' | 'approved' = autoApprove ? 'approved' : 'pending';
     if (!autoApprove) {
-      await this.notifications.notifyUsers(tx, await this.approverIds(tx, employmentId, type.sensitive), {
-        type: 'absence.requested',
-        title: `${person.name} solicita ${type.sensitive ? 'una ausencia' : type.name.toLowerCase()}`,
-        body: `${person.name} ha solicitado ${days} día(s) ${range}.`,
-        link: '/ausencias?tab=aprobar',
-      });
+      // Circuito de aprobación (multinivel, con delegaciones): activa el primer paso y avisa.
+      status = await this.approvals.start(tx, row.id, employmentId, person.company_id, type.id, type.sensitive, tx.userId!);
     } else if (type.sensitive && access === 'self') {
       await this.notifications.notifyUsers(tx, await this.notifications.hrUserIds(tx, person.company_id), {
         type: 'absence.reported',
@@ -150,17 +151,8 @@ export class AbsencesService {
         link: '/ausencias?tab=aprobar',
       });
     }
-    await audit(tx, 'absence.requested', 'absence_request', row.id, { days, status: autoApprove ? 'approved' : 'pending' });
-    return { id: row.id, days, status: autoApprove ? 'approved' : 'pending' };
-  }
-
-  /** Aprueba el responsable directo; si no hay, o el tipo es sensible, RR. HH. */
-  private async approverIds(tx: Tx, employmentId: string, sensitive: boolean): Promise<string[]> {
-    const emp = await tx.one('SELECT company_id FROM employment WHERE id = $1', [employmentId]);
-    const manager = sensitive ? null : await this.notifications.managerUserId(tx, employmentId);
-    if (manager) return [manager];
-    const own = await this.notifications.userIdForEmployment(tx, employmentId);
-    return (await this.notifications.hrUserIds(tx, emp.company_id)).filter((id) => id !== own);
+    await audit(tx, 'absence.requested', 'absence_request', row.id, { days, status });
+    return { id: row.id, days, status };
   }
 
   async decide(tx: Tx, actor: Actor, requestId: string, approve: boolean, comment?: string) {
@@ -172,14 +164,17 @@ export class AbsencesService {
     );
     if (!r) throw new NotFoundException('Solicitud no encontrada');
     if (r.status !== 'pending') throw new ConflictException('La solicitud ya está resuelta');
-    const access = await employmentAccess(tx, actor, r.employment_id);
-    const allowed = access === 'hr' || (access === 'manager' && !r.sensitive);
-    if (!allowed) throw new ForbiddenException('No puedes resolver esta solicitud');
-    if (r.requested_by === actor.userId && access !== 'hr') throw new ForbiddenException('No puedes aprobar tu propia solicitud');
-
+    if (r.requested_by === actor.userId || actor.employments.some((e) => e.id === r.employment_id)) {
+      throw new ForbiddenException('No puedes aprobar tu propia solicitud');
+    }
+    const result = await this.approvals.decideStep(tx, actor, r, approve, comment);
+    if (result === 'pending') {
+      await audit(tx, 'absence.step_approved', 'absence_request', requestId, { comment });
+      return { ok: true, status: 'pending' };
+    }
     await tx.query(
-      `UPDATE absence_request SET status = $2, decided_by = $3, decided_at = now(), decision_comment = $4 WHERE id = $1`,
-      [requestId, approve ? 'approved' : 'rejected', actor.userId, comment ?? null],
+      `UPDATE absence_request SET status = $2, decided_by = $3, decided_at = now(), decision_comment = $4, current_step = NULL WHERE id = $1`,
+      [requestId, result, actor.userId, comment ?? null],
     );
     const userId = await this.notifications.userIdForEmployment(tx, r.employment_id);
     if (userId) {
@@ -191,7 +186,7 @@ export class AbsencesService {
       });
     }
     await audit(tx, approve ? 'absence.approved' : 'absence.rejected', 'absence_request', requestId, { comment });
-    return { ok: true };
+    return { ok: true, status: result };
   }
 
   async cancel(tx: Tx, actor: Actor, requestId: string) {
@@ -207,7 +202,8 @@ export class AbsencesService {
     if (access === 'self' && r.status === 'approved' && r.start_date <= today) {
       throw new ForbiddenException('Para anular una ausencia ya empezada, habla con RR. HH.');
     }
-    await tx.query(`UPDATE absence_request SET status = 'cancelled' WHERE id = $1`, [requestId]);
+    await tx.query(`UPDATE absence_request SET status = 'cancelled', current_step = NULL WHERE id = $1`, [requestId]);
+    await tx.query(`UPDATE approval_step SET status = 'cancelled' WHERE request_id = $1 AND status IN ('waiting', 'pending')`, [requestId]);
     if (r.status === 'approved' && access === 'self') {
       const mgr = await this.notifications.managerUserId(tx, r.employment_id);
       if (mgr) {
@@ -225,24 +221,25 @@ export class AbsencesService {
 
   async mine(tx: Tx, actor: Actor) {
     if (!actor.employments.length) return [];
-    return tx.query(
+    const rows = await tx.query(
       `SELECT ${REQUEST_COLUMNS} FROM ${REQUEST_FROM} WHERE r.employment_id = ANY($1) ORDER BY r.start_date DESC LIMIT 200`,
       [actor.employments.map((e) => e.id)],
     );
+    return this.withSteps(tx, rows);
+  }
+
+  /** Añade a cada solicitud sus pasos de aprobación (para ver en qué punto está). */
+  private async withSteps(tx: Tx, rows: any[]) {
+    const steps = await this.approvals.steps(tx, rows.map((r) => r.id));
+    return rows.map((r) => ({ ...r, steps: steps.filter((st: any) => st.request_id === r.id) }));
   }
 
   /** Solicitudes pendientes que puedo resolver. */
   async pendingForMe(tx: Tx, actor: Actor) {
-    const companies = hrCompanyFilter(actor);
-    const rows = await tx.query(
-      `SELECT ${REQUEST_COLUMNS} FROM ${REQUEST_FROM}
-        WHERE r.status = 'pending' AND r.requested_by <> $3
-          AND ((e.manager_employment_id = ANY($1) AND NOT t.sensitive)
-               OR $2::uuid[] IS NULL OR e.company_id = ANY($2))
-        ORDER BY r.created_at`,
-      [actor.employments.map((e) => e.id), companies, actor.userId],
-    );
-    return rows.map((r) => this.mask(actor, r));
+    const ids = await this.approvals.pendingRequestIds(tx, actor);
+    if (!ids.length) return [];
+    const rows = await tx.query(`SELECT ${REQUEST_COLUMNS} FROM ${REQUEST_FROM} WHERE r.id = ANY($1) ORDER BY r.created_at`, [ids]);
+    return (await this.withSteps(tx, rows)).map((r) => this.mask(actor, r));
   }
 
   /** Ausencias aprobadas o pendientes del equipo visible en un rango (calendario). */

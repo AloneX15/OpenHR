@@ -208,6 +208,23 @@ Columnas añadidas: `employment.hour_bank_enabled` y `hour_bank_start`; `absence
 | `comment`, `decision_comment` | text? | |
 | `requested_by`, `decided_by`, `decided_at` | | |
 
+#### `approval_flow` — circuito de aprobación
+`company_id` y `absence_type_id` (ambos opcionales; único por combinación, con `NULLS NOT DISTINCT`) y `steps`: lista JSON de 1 a 5 pasos `{"kind": "manager" | "manager_of_manager" | "hr" | "admin" | "user", "userId"?}`. Se aplica el más específico; sin ninguno, un paso: el responsable directo. Las ausencias sensibles las aprueba siempre RR. HH.
+
+#### `approval_step` — pasos de cada solicitud
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `request_id`, `step_index` | | Único por solicitud y posición |
+| `kind`, `target_user_id` | | Copia del paso del circuito al crear la solicitud |
+| `approver_user_ids` | uuid[] | Aprobadores resueltos al activar el paso (nunca quien solicita) |
+| `status` | text | `waiting`, `pending` (paso actual), `approved`, `rejected`, `skipped` (sin aprobadores), `cancelled` |
+| `decided_by`, `decided_as`, `decided_at`, `comment` | | `decided_as`: `approver`, `delegate` o `hr` (RR. HH. resuelve la solicitud entera) |
+
+`absence_request.current_step` apunta al paso pendiente. Si ningún paso tiene aprobadores, se añade uno de RR. HH. y, en último caso, de administración.
+
+#### `approval_delegation`
+`from_user_id`, `to_user_id` (distintos), `start_date`, `end_date`, `reason`. Mientras está vigente, `to_user_id` puede resolver los pasos de `from_user_id` y recibe sus avisos.
+
 #### `vacation_adjustment`
 Ajustes manuales del saldo por año (`days` positivo o negativo, `reason` obligatorio).
 
@@ -263,6 +280,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `005_security.sql` | RLS, permisos del rol de aplicación y funciones definer |
 | `006_session_hardening.sql` | Versión de sesión, comprobación de sesión y borrado del cuerpo de los emails enviados |
 | `007_shifts_hour_bank.sql` | Turnos, reglas de descanso por sociedad y bolsa de horas |
+| `008_approvals.sql` | Circuitos de aprobación, pasos por solicitud y delegaciones |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

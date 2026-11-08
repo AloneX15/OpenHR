@@ -17,7 +17,8 @@
 ## Responsables de equipo
 
 - **Inicio** muestra las solicitudes pendientes de tu equipo.
-- **Ausencias → Por aprobar**: aprueba o rechaza (con motivo). **Calendario del equipo**: quién falta cada mes.
+- **Ausencias → Por aprobar**: aprueba o rechaza (con motivo). Si el circuito tiene más pasos, tu aprobación pasa la solicitud al siguiente. **Calendario del equipo**: quién falta cada mes.
+- **Ausencias → Delegaciones**: antes de irte de vacaciones, delega tus aprobaciones en otra persona para esas fechas.
 - **Equipo**: quién está trabajando ahora y el control horario de cada persona (solo lectura).
 
 **Turnos.** En **Turnos** (responsables y RR. HH.) se planifica la semana eligiendo una plantilla, «Libre» o nada para cada persona y día. Los cambios son borradores hasta pulsar *Publicar*; entonces cada persona recibe un aviso y ve sus turnos en **Mi control horario**. Si un turno incumple el descanso entre jornadas, la jornada máxima o el descanso semanal, aparece un aviso. *Copiar semana anterior* ahorra trabajo en cuadrantes que se repiten.
@@ -41,4 +42,5 @@
 
 - **Organización → Sociedades**: añadir y editar sociedades del grupo.
 - **Organización → Tipos de ausencia**: ajustar los permisos a vuestro convenio.
+- **Organización → Circuitos de aprobación**: por ejemplo, que las vacaciones de una sociedad las apruebe primero el responsable y después RR. HH.
 - **Equipo → persona → Permisos**: dar acceso de Administración o de RR. HH. (en todas las sociedades o en algunas). Ser responsable no necesita permiso: depende de a quién reporta cada persona.
