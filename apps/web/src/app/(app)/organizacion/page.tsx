@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
 import { ApprovalFlows } from '@/components/Approvals';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
+import { FactorialMigration } from '@/components/FactorialMigration';
 import { ChecklistTemplatesAdmin, CustomFieldsAdmin } from '@/components/Lifecycle';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
 import { api, download } from '@/lib/api';
 import { dayLabel, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones' | 'checklists' | 'campos';
+type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones' | 'checklists' | 'campos' | 'migracion';
 
 export default function OrganizationPage() {
   const { me } = useSession();
@@ -31,6 +32,7 @@ export default function OrganizationPage() {
           { id: 'aprobaciones', label: 'Circuitos de aprobación' },
           { id: 'checklists', label: 'Checklists' },
           { id: 'campos', label: 'Campos personalizados' },
+          ...(me.isAdmin ? [{ id: 'migracion' as Tab, label: 'Migrar desde Factorial' }] : []),
         ]}
       />
       {tab === 'personas' && <People />}
@@ -41,6 +43,7 @@ export default function OrganizationPage() {
       {tab === 'aprobaciones' && <ApprovalFlows isAdmin={me.isAdmin} />}
       {tab === 'checklists' && <ChecklistTemplatesAdmin />}
       {tab === 'campos' && <CustomFieldsAdmin isAdmin={me.isAdmin} />}
+      {tab === 'migracion' && me.isAdmin && <FactorialMigration />}
     </>
   );
 }

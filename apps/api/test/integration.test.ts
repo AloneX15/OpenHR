@@ -803,3 +803,124 @@ describe('RGPD y canal de denuncias', () => {
     await request(server).post(`/api/public/whistleblowing/${token}/status`).send({ code: 'AAAAA-BBBBB-CCCCC-DDDDD' }).expect(404);
   });
 });
+
+describe('migración desde Factorial', () => {
+  const LETTERS = 'TRWAGMYFPDXBNJZSQVHLCKE';
+  const dni = (n: number) => `${n}${LETTERS[n % 23]}`;
+  let mock: import('node:http').Server;
+  const calls: string[] = [];
+
+  beforeAll(async () => {
+    const http = await import('node:http');
+    const fixtures: Record<string, any[][]> = {
+      'companies/legal_entities': [[{ id: 1, legal_name: 'Factorial Import SL', tin: 'B11223344', country: 'es' }]],
+      'locations/locations': [[{ id: 10, name: 'Oficina Bilbao', timezone: 'Europe/Madrid' }]],
+      'teams/teams': [[{ id: 5, name: 'Ventas', employee_ids: [100, 101] }]],
+      // Dos páginas para probar la paginación por cursor.
+      'employees/employees': [
+        [{ id: 100, first_name: 'Iker', last_name: 'Importado', identifier: dni(66666666), gender: 'male', email: 'iker@factorial.test', legal_entity_id: 1, location_id: 10, manager_id: 101 }],
+        [{ id: 101, first_name: 'Irene', last_name: 'Importada', identifier: 'X0000000', gender: 'female', legal_entity_id: 1, location_id: 10 }],
+      ],
+      'contracts/contract_versions': [
+        [
+          { employee_id: 100, effective_on: '2024-01-01', starts_on: '2024-01-01', job_title: 'Comercial', working_hours: 30, working_hours_frequency: 'week', salary_amount: 2800000, salary_frequency: 'yearly' },
+          { employee_id: 101, effective_on: '2023-05-01', starts_on: '2023-05-01', job_title: 'Directora comercial', working_hours: 40, working_hours_frequency: 'week' },
+        ],
+      ],
+      'timeoff/leave_types': [[{ id: 7, name: 'Vacaciones', identifier: 'holiday' }]],
+      'timeoff/leaves': [
+        [
+          { id: 70, employee_id: 100, start_on: '2025-08-04', finish_on: '2025-08-08', leave_type_id: 7, approved: true, days_taken: 5 },
+          { id: 71, employee_id: 100, start_on: '2025-09-15', finish_on: '2025-09-15', leave_type_id: 7, approved: null, days_taken: 1 },
+        ],
+      ],
+      'attendance/shifts': [
+        [
+          { id: 900, employee_id: 100, date: '2025-09-01', clock_in: '09:00', clock_out: '14:00', workable: true },
+          { id: 901, employee_id: 100, date: '2025-09-01', clock_in: '15:00', clock_out: '18:00', workable: true },
+          { id: 902, employee_id: 100, date: '2025-09-02', clock_in: '09:00', clock_out: null, workable: true },
+        ],
+      ],
+    };
+    mock = http.createServer((req, res) => {
+      const url = new URL(req.url!, 'http://x');
+      calls.push(url.pathname);
+      if (req.headers['x-api-key'] !== 'clave-de-prueba-123') {
+        res.writeHead(401).end();
+        return;
+      }
+      const resource = url.pathname.replace('/api/2026-10-01/resources/', '');
+      const pages = fixtures[resource] ?? [[]];
+      const page = url.searchParams.get('after_id') ? Number(url.searchParams.get('after_id')) : 0;
+      const hasNext = page + 1 < pages.length;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ data: pages[page], meta: { has_next_page: hasNext, end_cursor: hasNext ? String(page + 1) : null, limit: 100 } }));
+    });
+    await new Promise<void>((r) => mock.listen(0, '127.0.0.1', () => r()));
+    process.env.FACTORIAL_BASE_URL = `http://127.0.0.1:${(mock.address() as any).port}`;
+  });
+
+  afterAll(() => {
+    mock?.close();
+    delete process.env.FACTORIAL_BASE_URL;
+  });
+
+  const waitJob = async (jobId: string) => {
+    for (let i = 0; i < 150; i++) {
+      const j = (await adminAgent.get(`/api/migration/jobs/${jobId}`).expect(200)).body;
+      if (j.status !== 'running') return j;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error('La migración no terminó');
+  };
+
+  it('solo administración puede migrar y una clave mala falla con un mensaje claro', async () => {
+    await luis.post('/api/migration/factorial').send({ apiKey: 'clave-de-prueba-123' }).expect(403);
+    const bad = await adminAgent.post('/api/migration/factorial').send({ apiKey: 'clave-incorrecta-1' }).expect(201);
+    const job = await waitJob(bad.body.jobId);
+    expect(job).toMatchObject({ status: 'failed' });
+    expect(job.error).toMatch(/clave de API/);
+  });
+
+  it('la simulación cuenta sin escribir nada', async () => {
+    const r = await adminAgent.post('/api/migration/factorial').send({ apiKey: 'clave-de-prueba-123', dryRun: true, shiftsFrom: '2025-01-01' }).expect(201);
+    const job = await waitJob(r.body.jobId);
+    expect(job).toMatchObject({ status: 'done', counts: { personas: 2, sociedades: 1, ausencias: 1, fichajes: 3 } });
+    expect(job.log.join('\n')).toMatch(/no es un DNI\/NIE válido/);
+    expect((await owner.query(`SELECT count(*)::int AS n FROM company WHERE tax_id = 'B11223344'`)).rows[0].n).toBe(0);
+  });
+
+  it('importa sociedad, centro, equipo, personas, responsable, contratos, ausencias y fichajes, y se puede repetir', async () => {
+    const r = await adminAgent
+      .post('/api/migration/factorial')
+      .send({ apiKey: 'clave-de-prueba-123', dryRun: false, shiftsFrom: '2025-01-01', includeSalaries: true })
+      .expect(201);
+    const job = await waitJob(r.body.jobId);
+    expect(job.error).toBeNull();
+    expect(job.status).toBe('done');
+    expect(job.counts).toMatchObject({ 'sociedades creadas': 1, 'centros creados': 1, 'personas creadas': 2, ausencias: 1, fichajes: 2, retribuciones: 1 });
+    const iker = (await adminAgent.get('/api/org/employees?q=iker')).body[0];
+    expect(iker).toMatchObject({
+      company_name: 'Factorial Import SL',
+      work_center_name: 'Oficina Bilbao',
+      department_name: 'Ventas',
+      manager_name: 'Irene Importada',
+      job_title: 'Comercial',
+      national_id: dni(66666666),
+    });
+    const detail = (await adminAgent.get(`/api/org/employees/${iker.id}`)).body;
+    expect(detail).toMatchObject({ weekly_minutes: 1800, start_date: '2024-01-01', sex: 'male' });
+    const day = (await adminAgent.get(`/api/time/employments/${iker.id}?from=2025-09-01&to=2025-09-01`)).body;
+    expect(day.days[0].workedMinutes).toBe(8 * 60);
+    expect(day.entries.every((e: any) => e.source === 'import')).toBe(true);
+    expect((await adminAgent.get(`/api/time/employments/${iker.id}/verify`)).body.ok).toBe(true);
+
+    // Repetir no duplica.
+    const again = await waitJob(
+      (await adminAgent.post('/api/migration/factorial').send({ apiKey: 'clave-de-prueba-123', dryRun: false, shiftsFrom: '2025-01-01' }).expect(201)).body.jobId,
+    );
+    expect(again.counts).toMatchObject({ 'personas actualizadas': 2, 'fichajes ya importados': 2 });
+    expect((await owner.query(`SELECT count(*)::int AS n FROM person WHERE last_name LIKE 'Importad%'`)).rows[0].n).toBe(2);
+    expect(calls.some((c) => c.endsWith('/employees/employees'))).toBe(true);
+  });
+});

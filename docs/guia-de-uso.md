@@ -56,6 +56,8 @@
 
 ## Administración
 
+- **Organización → Migrar desde Factorial**: trae los datos de Factorial con una clave de API (ver [migración desde Factorial](migracion-factorial.md)).
+
 - **Privacidad → Conservación**: plazos de conservación y anonimización de quien dejó el grupo (se aplican solos cada día).
 - **Privacidad → Canal de denuncias**: activarlo y obtener el enlace para la plantilla. Asigna en la ficha de una persona el permiso «Responsable del canal de denuncias»: es quien gestiona las comunicaciones en **Canal de denuncias**.
 

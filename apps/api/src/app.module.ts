@@ -11,6 +11,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { OrgModule } from './org/org.module';
 import { PayModule } from './pay/pay.module';
 import { PrivacyModule } from './privacy/privacy.module';
+import { MigrationModule } from './migration/migration.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { TimeModule } from './time/time.module';
 
@@ -27,7 +28,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule],
+  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule, PayModule, PrivacyModule, MigrationModule],
   controllers: [HealthController],
 })
 export class AppModule {}

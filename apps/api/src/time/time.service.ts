@@ -82,6 +82,16 @@ export class TimeService {
     return row;
   }
 
+  /**
+   * Fichaje importado de otro sistema (source = 'import', con motivo). La clave de
+   * idempotencia evita duplicarlo si la importación se repite. Devuelve null si ya existía.
+   */
+  async importEntry(tx: Tx, employmentId: string, e: { kind: Exclude<EntryKind, 'void'>; occurredAt: Date; reason: string; idempotencyKey: string }) {
+    const existing = await tx.maybeOne('SELECT id FROM time_entry WHERE idempotency_key = $1', [e.idempotencyKey]);
+    if (existing) return null;
+    return this.append(tx, employmentId, { kind: e.kind, occurredAt: e.occurredAt, source: 'import', reason: e.reason, idempotencyKey: e.idempotencyKey });
+  }
+
   /** Estado actual: se mira hacia atrás hasta 36 h para encontrar la última entrada abierta. */
   async currentState(tx: Tx, employmentId: string, now = new Date()): Promise<{ state: WorkState; since: Date | null }> {
     const from = new Date(now.getTime() - 36 * 3600 * 1000);

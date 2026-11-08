@@ -288,6 +288,10 @@ La purga de fichajes solo puede hacerla la función `retention_purge_time_entrie
 #### `wb_report` y `wb_message`
 Canal interno de información (Ley 2/2023). Asunto, descripción, contacto, resolución y mensajes se guardan **cifrados** (AES-256-GCM con `ENCRYPTION_KEY`). El informante se identifica solo por el hash de su código de seguimiento (`code_hash`). Plazos: `ack_due` (7 días) y `resolution_due` (3 meses, ampliable a 6). `tenant.whistleblowing_token` es el identificador público del canal y `wb_tenant_by_token()` lo resuelve sin sesión. Rol nuevo en `role_assignment`: `compliance` (Responsable del Sistema).
 
+### Migraciones
+
+`migration_mapping` relaciona cada identificador externo (`source` = `factorial`, `entity`, `external_id`) con el de OpenHR para poder repetir la migración. `migration_job` guarda cada ejecución: opciones, estado, recuentos y registro (nunca la clave de API).
+
 ### Sistema
 
 #### `audit_event` (append-only)
@@ -331,6 +335,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `010_communication_signature.sql` | Anuncios, políticas con aceptación y firma individual |
 | `011_pay_register.sql` | Sexo, grupo profesional, jornada completa de referencia y retribuciones |
 | `012_privacy_whistleblowing.sql` | Derechos RGPD, conservación y purga de fichajes con punto de control, canal de denuncias cifrado |
+| `013_migration_jobs.sql` | Correspondencias y ejecuciones de migraciones desde otros sistemas |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

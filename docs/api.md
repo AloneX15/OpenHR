@@ -217,6 +217,13 @@ Cálculo: personas con relación laboral en algún momento del año, con la retr
 
 Las rutas públicas tienen límite de 20 peticiones por IP cada 15 minutos.
 
+## Migración desde Factorial
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `POST /migration/factorial` | A | `{ apiKey, environment: production \| demo, dryRun, shiftsFrom?, includeLeaves, includeSalaries }` → `{ jobId }`. Se ejecuta en segundo plano |
+| `GET /migration/jobs`, `GET /migration/jobs/:id` | A | Estado, recuentos y registro |
+
 ## Exportaciones e importación
 
 | Método y ruta | Quién | Descripción |
