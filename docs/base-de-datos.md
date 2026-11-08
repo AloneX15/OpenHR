@@ -275,6 +275,19 @@ Solicitud de firma de un PDF a una persona: `title`, `message`, `file_id`, `stat
 
 `document.category` admite además `policy` y `signed`.
 
+### Privacidad y canal de denuncias
+
+#### `privacy_request`
+Solicitudes de derechos del RGPD: `kind` (`access`, `rectification`, `erasure`, `restriction`, `portability`, `objection`), `details`, `status` (`received`, `in_progress`, `completed`, `rejected`), `due_date` (un mes, ampliable dos), `response`, `handled_by`.
+
+#### `retention_setting`, `retention_run` y `time_chain_checkpoint`
+Plazos de conservación en días por categoría (`time_entries` ≥ 1461, `former_employees` ≥ 1461, `audit`, `notifications`, `outbox`) y registro de cada ejecución. Al purgar fichajes se guarda por relación laboral el último eslabón purgado (`seq`, `hash`) para que la cadena siga verificándose. `person.anonymized_at` marca a quien se ha anonimizado.
+
+La purga de fichajes solo puede hacerla la función `retention_purge_time_entries(tenant, antes_de)` (`SECURITY DEFINER`): exige el tenant de la sesión y una fecha de al menos 4 años atrás, y el trigger de inmutabilidad solo admite el borrado durante esa función.
+
+#### `wb_report` y `wb_message`
+Canal interno de información (Ley 2/2023). Asunto, descripción, contacto, resolución y mensajes se guardan **cifrados** (AES-256-GCM con `ENCRYPTION_KEY`). El informante se identifica solo por el hash de su código de seguimiento (`code_hash`). Plazos: `ack_due` (7 días) y `resolution_due` (3 meses, ampliable a 6). `tenant.whistleblowing_token` es el identificador público del canal y `wb_tenant_by_token()` lo resuelve sin sesión. Rol nuevo en `role_assignment`: `compliance` (Responsable del Sistema).
+
 ### Sistema
 
 #### `audit_event` (append-only)
@@ -317,6 +330,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `009_lifecycle_custom_fields.sql` | Checklists de alta, baja y traspaso, traspasos y campos personalizados |
 | `010_communication_signature.sql` | Anuncios, políticas con aceptación y firma individual |
 | `011_pay_register.sql` | Sexo, grupo profesional, jornada completa de referencia y retribuciones |
+| `012_privacy_whistleblowing.sql` | Derechos RGPD, conservación y purga de fichajes con punto de control, canal de denuncias cifrado |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

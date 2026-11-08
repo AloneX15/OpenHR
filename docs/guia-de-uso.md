@@ -18,6 +18,10 @@
 
 **Tareas.** En **Tareas** ves lo que te toca de las altas, bajas y traspasos en curso (por ejemplo, leer el manual de acogida). Márcalas al terminarlas.
 
+**Privacidad.** En **Privacidad** puedes descargar todos tus datos y pedir que se corrijan o borren; la empresa tiene un mes para responder.
+
+**Canal de denuncias.** Si la empresa lo ha activado, tiene un enlace propio (pídelo a RR. HH.). Puedes comunicar irregularidades de forma anónima y seguirlas con el código que te damos.
+
 **Tu cuenta.** En **Mi cuenta** (tu nombre, abajo a la izquierda) cambias la contraseña, activas la verificación en dos pasos y eliges el tema: Claro, Oscuro o Sistema.
 
 ## Responsables de equipo
@@ -51,6 +55,9 @@
 - **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
 
 ## Administración
+
+- **Privacidad → Conservación**: plazos de conservación y anonimización de quien dejó el grupo (se aplican solos cada día).
+- **Privacidad → Canal de denuncias**: activarlo y obtener el enlace para la plantilla. Asigna en la ficha de una persona el permiso «Responsable del canal de denuncias»: es quien gestiona las comunicaciones en **Canal de denuncias**.
 
 - **Organización → Sociedades**: añadir y editar sociedades del grupo.
 - **Organización → Tipos de ausencia**: ajustar los permisos a vuestro convenio.

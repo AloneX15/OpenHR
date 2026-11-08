@@ -115,6 +115,7 @@ export class AuthService {
         mfaEnabled: info.totp_enabled,
         personId: actor.personId,
         isAdmin: actor.isAdmin,
+        isCompliance: actor.isCompliance,
         isHr: actor.isAdmin || actor.hrAll || actor.hrCompanyIds.length > 0,
         hrCompanyIds: actor.isAdmin || actor.hrAll ? null : actor.hrCompanyIds,
         isManager: reports.n > 0,

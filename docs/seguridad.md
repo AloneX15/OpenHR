@@ -44,6 +44,16 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 ### Datos salariales
 - La retribución y el sexo solo los ve RR. HH. de la sociedad (el sexo, también la propia persona); el responsable no. La auditoría registra que hubo un cambio y quién lo hizo, sin los importes.
 
+### Canal de denuncias
+- Accesible sin cuenta en `/canal/<token>`; el token es aleatorio y se puede cambiar. Anónimo si se quiere: no se guarda la IP ni datos del informante, que se identifica solo con un código de seguimiento de unos 100 bits del que se guarda el hash.
+- Contenido cifrado en la base de datos. Solo lo ve quien tiene el rol de Responsable del Sistema; administración y RR. HH. no, salvo que se les asigne (queda en la auditoría, como cada consulta de una comunicación).
+- Plazos legales (acuse en 7 días, respuesta en 3 meses) visibles y marcados al vencer.
+
+### Conservación y derechos
+- Plazos por categoría aplicados cada día. El registro de jornada no se puede purgar antes de 4 años ni desde la propia base de datos.
+- Anonimización de quien dejó el grupo: datos identificativos, cuenta, campos personalizados, evidencias de firma y documentos.
+- Cada persona descarga sus datos en JSON y ejerce sus derechos con plazo de respuesta controlado.
+
 ### Firma electrónica
 - Es una **firma electrónica simple** (art. 3.10 del Reglamento eIDAS): tiene validez jurídica y su fuerza probatoria depende de las evidencias. Para contratos de alto riesgo puede convenir un proveedor de firma avanzada o cualificada (pendiente como adaptador).
 - Doble factor: sesión autenticada y código de un solo uso enviado al email del firmante (guardado como hash, 10 minutos, 5 intentos; los fallos quedan registrados aunque la petición falle).
@@ -89,7 +99,6 @@ Los tests de integración cubren los puntos 1, 3 y 4.
 ## Pendiente (V1 comercial)
 
 - `'unsafe-inline'` en `script-src`: sustituir por nonces de Next.js.
-- Purga y anonimización por retención (RGPD) y solicitudes de los interesados.
 - Sellado automático mensual y sellado de tiempo RFC 3161.
 - Límites de intentos compartidos (en base de datos o Redis) si se despliegan varias réplicas de la API.
 - Antivirus opcional para documentos subidos.

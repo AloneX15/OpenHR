@@ -177,9 +177,10 @@ export function contentOf(e: StoredEntry): ChainContent {
 export type ChainCheck = { ok: true; count: number; head: string | null } | { ok: false; seq: number; problem: string };
 
 /** Verifica una cadena completa ordenada por seq. */
-export function verifyChain(entries: StoredEntry[]): ChainCheck {
-  let prev: string | null = null;
-  let expectedSeq = 1;
+/** `start` es el punto de control si se purgaron eslabones antiguos por conservación. */
+export function verifyChain(entries: StoredEntry[], start?: { seq: number; hash: string }): ChainCheck {
+  let prev: string | null = start?.hash ?? null;
+  let expectedSeq = (start?.seq ?? 0) + 1;
   for (const e of [...entries].sort((a, b) => Number(a.seq) - Number(b.seq))) {
     const seq = Number(e.seq);
     if (seq !== expectedSeq) return { ok: false, seq, problem: `Falta el eslabón ${expectedSeq}` };

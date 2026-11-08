@@ -264,7 +264,8 @@ export class TimeService {
     await assertEmploymentAccess(tx, actor, employmentId);
     const entries = await tx.query<StoredEntry>(`SELECT ${ENTRY_COLUMNS} FROM time_entry WHERE employment_id = $1 ORDER BY seq`, [employmentId]);
     const emp = await tx.one('SELECT time_chain_head, time_chain_seq FROM employment WHERE id = $1', [employmentId]);
-    const check = verifyChain(entries);
+    const cp = await tx.maybeOne('SELECT seq, hash FROM time_chain_checkpoint WHERE employment_id = $1', [employmentId]);
+    const check = verifyChain(entries, cp ? { seq: Number(cp.seq), hash: cp.hash } : undefined);
     if (check.ok && (check.head !== emp.time_chain_head || check.count !== Number(emp.time_chain_seq))) {
       return { ok: false, problem: 'La cabeza de la cadena no coincide con el último fichaje (posible borrado)' };
     }

@@ -14,6 +14,7 @@ export interface Me {
   mfaEnabled: boolean;
   personId: string | null;
   isAdmin: boolean;
+  isCompliance: boolean;
   isHr: boolean;
   hrCompanyIds: string[] | null;
   isManager: boolean;

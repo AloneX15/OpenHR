@@ -21,6 +21,8 @@ const NAV: { href: string; label: string; icon: IconName; show: (m: Me) => boole
   { href: '/equipo', label: 'Equipo', icon: 'team', show: (m) => m.isManager || m.isHr },
   { href: '/organizacion', label: 'Organización', icon: 'organization', show: (m) => m.isHr },
   { href: '/informes', label: 'Informes', icon: 'reports', show: (m) => m.isHr },
+  { href: '/canal-denuncias', label: 'Canal de denuncias', icon: 'whistleblowing', show: (m) => m.isCompliance },
+  { href: '/privacidad', label: 'Privacidad', icon: 'privacy', show: () => true },
 ];
 
 function NavLink({ href, label, icon, active, onNavigate }: { href: string; label: string; icon: IconName; active: boolean; onNavigate: () => void }) {

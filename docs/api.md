@@ -190,6 +190,33 @@ Cálculo: personas con relación laboral en algún momento del año, con la retr
 | `POST /signatures/:id/cancel` | H | Solo pendientes |
 | `GET /signatures/:id/evidence` | Firmante / H | Evidencias de la firma |
 
+## Privacidad (RGPD)
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /privacy/my-data` | S | JSON con todos mis datos (acceso y portabilidad) |
+| `GET /privacy/requests/mine`, `POST /privacy/requests` | S | Mis solicitudes; `{ kind, details }` |
+| `GET /privacy/requests` | H / A | Solicitudes (RR. HH., de personas de sus sociedades) |
+| `POST /privacy/requests/:id` | H / A | `{ status, response?, extendDays? }` |
+| `GET /privacy/retention`, `PUT /privacy/retention` | S / A | Plazos de conservación en días |
+| `POST /privacy/retention/run` | A | `{ dryRun }`: cuenta o aplica (fichajes, notificaciones, emails enviados, anonimización de antiguas personas) |
+| `POST /privacy/anonymize/:personId` | A | Anonimiza ya a una persona sin relación vigente |
+
+## Canal de denuncias
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /whistleblowing/settings`, `POST /whistleblowing/enable` | A (y responsable para ver) | Activa el canal o cambia su enlace (`{ regenerate }`) |
+| `GET /whistleblowing/reports`, `GET /whistleblowing/reports/:id` | Responsable del Sistema | Comunicaciones descifradas; consultar una queda en la auditoría |
+| `POST /whistleblowing/reports/:id/messages` | Responsable | Responder (cuenta como acuse de recibo) |
+| `POST /whistleblowing/reports/:id/status` | Responsable | `{ status, resolution?, extendResolution? }` |
+| `GET /public/whistleblowing/:token` | P | Nombre de la organización y categorías |
+| `POST /public/whistleblowing/:token/reports` | P | `{ category, subject, description, anonymous, contact? }` → `{ code }` |
+| `POST /public/whistleblowing/:token/status` | P | `{ code }` → estado, resolución y mensajes |
+| `POST /public/whistleblowing/:token/messages` | P | `{ code, body }` |
+
+Las rutas públicas tienen límite de 20 peticiones por IP cada 15 minutos.
+
 ## Exportaciones e importación
 
 | Método y ruta | Quién | Descripción |

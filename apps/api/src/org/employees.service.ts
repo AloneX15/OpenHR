@@ -366,10 +366,13 @@ export class EmployeesService {
     return { employmentId: created.id };
   }
 
-  async setRoles(tx: Tx, userId: string, roles: { admin: boolean; hrAll: boolean; hrCompanyIds: string[] }) {
+  async setRoles(tx: Tx, userId: string, roles: { admin: boolean; hrAll: boolean; hrCompanyIds: string[]; compliance?: boolean }) {
     await tx.query('DELETE FROM role_assignment WHERE user_id = $1', [userId]);
     if (roles.admin) {
       await tx.query(`INSERT INTO role_assignment (tenant_id, user_id, role) VALUES ($1, $2, 'admin')`, [tx.tenantId, userId]);
+    }
+    if (roles.compliance) {
+      await tx.query(`INSERT INTO role_assignment (tenant_id, user_id, role) VALUES ($1, $2, 'compliance')`, [tx.tenantId, userId]);
     }
     if (roles.hrAll) {
       await tx.query(`INSERT INTO role_assignment (tenant_id, user_id, role) VALUES ($1, $2, 'hr')`, [tx.tenantId, userId]);

@@ -173,6 +173,7 @@ function RolesCard({ e, reload }: { e: any; reload: () => Promise<void> }) {
   const [admin, setAdmin] = useState(roles.some((r) => r.role === 'admin'));
   const [hrAll, setHrAll] = useState(roles.some((r) => r.role === 'hr' && !r.company_id));
   const [hrCompanies, setHrCompanies] = useState<string[]>(roles.filter((r) => r.role === 'hr' && r.company_id).map((r) => r.company_id));
+  const [compliance, setCompliance] = useState(roles.some((r) => r.role === 'compliance'));
   const action = useAction();
   const [saved, setSaved] = useState(false);
   return (
@@ -196,13 +197,16 @@ function RolesCard({ e, reload }: { e: any; reload: () => Promise<void> }) {
             RR. HH. en {c.name}
           </label>
         ))}
+      <label className="check">
+        <input type="checkbox" checked={compliance} onChange={(ev) => setCompliance(ev.target.checked)} /> Responsable del canal de denuncias
+      </label>
       <p className="muted small">Ser responsable de equipo no necesita permiso: se deriva de quién reporta a quién.</p>
       <button
         className="btn btn-primary btn-sm"
         disabled={action.busy}
         onClick={() =>
           action.run(async () => {
-            await api.put(`/org/users/${e.user_id}/roles`, { admin, hrAll, hrCompanyIds: hrCompanies });
+            await api.put(`/org/users/${e.user_id}/roles`, { admin, hrAll, hrCompanyIds: hrCompanies, compliance });
             setSaved(true);
             await reload();
           })

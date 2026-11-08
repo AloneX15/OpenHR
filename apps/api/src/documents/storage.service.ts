@@ -64,6 +64,14 @@ export class StorageService {
     );
   }
 
+  /** Borra el fichero y su fila (la fila no debe estar referenciada). */
+  async remove(tx: Tx, fileId: string) {
+    const file = await tx.maybeOne<StoredFile>('SELECT * FROM stored_file WHERE id = $1', [fileId]);
+    if (!file) return;
+    await tx.query('DELETE FROM stored_file WHERE id = $1', [fileId]);
+    await this.adapter.delete(file.storage_key);
+  }
+
   async read(tx: Tx, fileId: string): Promise<{ file: StoredFile; data: Buffer }> {
     const file = await tx.one<StoredFile>('SELECT * FROM stored_file WHERE id = $1', [fileId]);
     const data = await this.adapter.get(file.storage_key);

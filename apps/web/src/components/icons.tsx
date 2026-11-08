@@ -28,6 +28,8 @@ import { PencilIcon } from '@animateicons/react/lucide/pencil-icon';
 import { PlusIcon } from '@animateicons/react/lucide/plus-icon';
 import { SettingsIcon } from '@animateicons/react/lucide/settings-icon';
 import { ShieldCheckIcon } from '@animateicons/react/lucide/shield-check-icon';
+import { ShieldUserIcon } from '@animateicons/react/lucide/shield-user-icon';
+import { LockIcon } from '@animateicons/react/lucide/lock-icon';
 import { SunIcon } from '@animateicons/react/lucide/sun-icon';
 import { TimerIcon } from '@animateicons/react/lucide/timer-icon';
 import { UploadIcon } from '@animateicons/react/lucide/upload-icon';
@@ -65,6 +67,8 @@ export const Icons = {
   policies: ScrollTextIcon,
   sign: SignatureIcon,
   security: ShieldCheckIcon,
+  privacy: LockIcon,
+  whistleblowing: ShieldUserIcon,
 } satisfies Record<string, AnyIcon>;
 
 export type IconName = keyof typeof Icons;

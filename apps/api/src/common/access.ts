@@ -6,6 +6,8 @@ export interface Actor {
   tenantId: string;
   personId: string | null;
   isAdmin: boolean;
+  /** Responsable del Sistema interno de información (canal de denuncias). */
+  isCompliance: boolean;
   /** RR. HH. en todas las sociedades del tenant. */
   hrAll: boolean;
   hrCompanyIds: string[];
@@ -36,6 +38,7 @@ export async function loadActor(tx: Tx): Promise<Actor> {
     tenantId: tx.tenantId,
     personId: user.person_id,
     isAdmin: roles.some((r) => r.role === 'admin'),
+    isCompliance: roles.some((r) => r.role === 'compliance'),
     hrAll: roles.some((r) => r.role === 'hr' && r.company_id === null),
     hrCompanyIds: roles.filter((r) => r.role === 'hr' && r.company_id).map((r) => r.company_id!),
     employments: employments.map((e) => ({ id: e.id, companyId: e.company_id, active: e.active })),

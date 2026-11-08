@@ -724,3 +724,82 @@ describe('registro retributivo', () => {
     expect((await marta.get(`/api/org/employees/${luisEmp}`)).body.sex).toBeUndefined();
   });
 });
+
+describe('RGPD y canal de denuncias', () => {
+  it('cada persona descarga sus datos y ejerce sus derechos', async () => {
+    const data = JSON.parse((await luis.get('/api/privacy/my-data').buffer(true).expect(200)).text);
+    expect(data.person).toMatchObject({ first_name: 'Luis', national_id: '00000000T' });
+    expect(data.timeEntries.length).toBeGreaterThan(0);
+    expect(data.absences.length).toBeGreaterThan(0);
+    const r = await luis.post('/api/privacy/requests').send({ kind: 'rectification', details: 'Mi segundo apellido está mal escrito' }).expect(201);
+    await marta.get('/api/privacy/requests').expect(403);
+    const list = (await adminAgent.get('/api/privacy/requests').expect(200)).body;
+    expect(list[0]).toMatchObject({ id: r.body.id, kind: 'rectification', status: 'received' });
+    await adminAgent.post(`/api/privacy/requests/${r.body.id}`).send({ status: 'completed' }).expect(400);
+    await adminAgent.post(`/api/privacy/requests/${r.body.id}`).send({ status: 'completed', response: 'Corregido.' }).expect(201);
+    expect((await luis.get('/api/privacy/requests/mine')).body[0]).toMatchObject({ status: 'completed', response: 'Corregido.' });
+  });
+
+  it('aplica los plazos de conservación y anonimiza a quien dejó el grupo hace años', async () => {
+    await adminAgent.put('/api/privacy/retention').send({ time_entries: 100 }).expect(400);
+    await adminAgent.put('/api/privacy/retention').send({ notifications: 30 }).expect(200);
+    const { rows } = await owner.query(`SELECT id FROM app_user WHERE email = 'luis@demo.test'`);
+    await owner.query(`INSERT INTO notification (tenant_id, user_id, type, title, created_at) VALUES ($1, $2, 'x', 'Antigua', now() - interval '60 days')`, [tenantId, rows[0].id]);
+    const old = await adminAgent
+      .post('/api/org/employees')
+      .send({ firstName: 'Olga', lastName: 'Antigua', nationalId: '55555555K', email: 'olga@demo.test', companyId, startDate: '2015-01-01' })
+      .expect(201);
+    await adminAgent.post(`/api/org/employees/${old.body.employmentId}/terminate`).send({ endDate: '2020-01-31' }).expect(201);
+    const dry = (await adminAgent.post('/api/privacy/retention/run').send({ dryRun: true }).expect(201)).body;
+    expect(dry.result.notifications).toBeGreaterThanOrEqual(1);
+    expect(dry.result.formerEmployees).toBe(1);
+    await luis.post('/api/privacy/retention/run').send({ dryRun: false }).expect(403);
+    await adminAgent.post('/api/privacy/retention/run').send({ dryRun: false }).expect(201);
+    const olga = (await adminAgent.get(`/api/org/employees/${old.body.employmentId}`)).body;
+    expect(olga).toMatchObject({ first_name: 'Persona', last_name: 'anonimizada', national_id: null, email: null });
+    const n = await owner.query(`SELECT count(*)::int AS n FROM notification WHERE title = 'Antigua'`);
+    expect(n.rows[0].n).toBe(0);
+    // El registro de jornada no se puede purgar antes de 4 años, ni siquiera desde la base de datos.
+    const app = new Client({ connectionString: process.env.DATABASE_URL });
+    await app.connect();
+    try {
+      await app.query('BEGIN');
+      await app.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+      await expect(app.query(`SELECT retention_purge_time_entries($1, now() - interval '1 year')`, [tenantId])).rejects.toThrow(/4 años/);
+      await app.query('ROLLBACK');
+    } finally {
+      await app.end();
+    }
+  });
+
+  it('el canal de denuncias es anónimo, cifrado y solo lo ve la persona responsable', async () => {
+    await luis.post('/api/whistleblowing/enable').send({}).expect(403);
+    const { token } = (await adminAgent.post('/api/whistleblowing/enable').send({}).expect(201)).body;
+    const info = (await request(server).get(`/api/public/whistleblowing/${token}`).expect(200)).body;
+    expect(info.organization).toBe('Grupo Demo');
+    await request(server).get('/api/public/whistleblowing/no-existe').expect(404);
+    const sent = await request(server)
+      .post(`/api/public/whistleblowing/${token}/reports`)
+      .send({ category: 'Acoso laboral o sexual', subject: 'Comentarios ofensivos', description: 'Desde hace semanas se repiten comentarios ofensivos en reuniones.', anonymous: true })
+      .expect(201);
+    const code = sent.body.code as string;
+    expect(code).toMatch(/^[A-Z2-9]{5}(-[A-Z2-9]{5}){3}$/);
+    const stored = await owner.query('SELECT subject_enc, description_enc FROM wb_report');
+    expect(stored.rows[0].subject_enc).not.toContain('ofensivos');
+
+    await adminAgent.get('/api/whistleblowing/reports').expect(403); // administración no lo ve por serlo
+    const { rows } = await owner.query(`SELECT id FROM app_user WHERE email = 'ana@demo.test'`);
+    await adminAgent.put(`/api/org/users/${rows[0].id}/roles`).send({ admin: true, hrAll: false, compliance: true }).expect(200);
+    const list = (await adminAgent.get('/api/whistleblowing/reports').expect(200)).body;
+    expect(list[0]).toMatchObject({ subject: 'Comentarios ofensivos', status: 'received', anonymous: true });
+    await adminAgent.post(`/api/whistleblowing/reports/${list[0].id}/messages`).send({ body: 'Recibido. ¿Puedes indicar en qué reuniones?' }).expect(201);
+    const status = (await request(server).post(`/api/public/whistleblowing/${token}/status`).send({ code: code.toLowerCase() }).expect(201)).body;
+    expect(status).toMatchObject({ status: 'acknowledged', messages: [{ author: 'handler' }] });
+    expect(status.id).toBeUndefined();
+    await request(server).post(`/api/public/whistleblowing/${token}/messages`).send({ code, body: 'En las de los lunes.' }).expect(201);
+    await adminAgent.post(`/api/whistleblowing/reports/${list[0].id}/status`).send({ status: 'resolved' }).expect(400);
+    await adminAgent.post(`/api/whistleblowing/reports/${list[0].id}/status`).send({ status: 'resolved', resolution: 'Se han tomado medidas.' }).expect(201);
+    await request(server).post(`/api/public/whistleblowing/${token}/messages`).send({ code, body: 'Gracias' }).expect(400);
+    await request(server).post(`/api/public/whistleblowing/${token}/status`).send({ code: 'AAAAA-BBBBB-CCCCC-DDDDD' }).expect(404);
+  });
+});

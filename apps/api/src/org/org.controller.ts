@@ -316,7 +316,7 @@ export class OrgController {
   @Put('users/:userId/roles')
   setRoles(@CurrentUser() u: SessionUser, @Param('userId', ParseUUIDPipe) userId: string, @Body() body: unknown) {
     const roles = parse(
-      z.object({ admin: z.boolean(), hrAll: z.boolean(), hrCompanyIds: z.array(zUuid).default([]) }),
+      z.object({ admin: z.boolean(), hrAll: z.boolean(), hrCompanyIds: z.array(zUuid).default([]), compliance: z.boolean().default(false) }),
       body,
     );
     return this.run(u, async (tx) => {

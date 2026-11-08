@@ -14,9 +14,9 @@ El registro de jornada (art. 34.9 ET) debe ser fiable y conservarse cuatro años
 - Cada relación laboral tiene su propia cadena: `hash = sha256(prev_hash | content_digest)`, donde `content_digest` es el SHA-256 del contenido canónico del evento. La cabeza (`time_chain_head`, `time_chain_seq`) vive en `employment` y se actualiza con un bloqueo de fila, que serializa solo los fichajes de una misma persona.
 - Quien controla la base de datos podría recalcular toda la cadena. Por eso existen los **sellos**: una huella de todas las cabezas de una sociedad que se envía por email a RR. HH. y queda fuera del sistema.
 
-## Retención (pendiente)
+## Retención (implementada en la migración 012)
 
-Como el hash encadena el *digest* y no el contenido, se pueden anonimizar los datos personales de un evento (por ejemplo, el motivo) sin romper los enlaces de la cadena; solo deja de poder comprobarse el contenido de ese evento. Para purgar periodos completos se guardará un punto de control con el último hash del periodo purgado, de forma que la verificación empiece en él. La purga se implementará con una función dedicada en la V1 comercial.
+Como el hash encadena el *digest* y no el contenido, se pueden anonimizar los datos personales de un evento (por ejemplo, el motivo) sin romper los enlaces de la cadena; solo deja de poder comprobarse el contenido de ese evento. Para purgar periodos completos se guardará un punto de control con el último hash del periodo purgado, de forma que la verificación empiece en él. La purga la hace `retention_purge_time_entries()`: guarda en `time_chain_checkpoint` el último eslabón purgado de cada relación laboral, borra los anteriores (el trigger solo lo permite dentro de esa función) y la verificación empieza en el punto de control.
 
 ## Pendiente
 
