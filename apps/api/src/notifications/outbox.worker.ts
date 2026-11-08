@@ -3,6 +3,7 @@ import nodemailer, { Transporter } from 'nodemailer';
 import webpush from 'web-push';
 import { config } from '../config';
 import { Db } from '../db/db.service';
+import { ChatService } from '../integrations/chat.service';
 import { allowedPushEndpoint, pushEnabled } from './notifications.service';
 
 /** Procesa el outbox: envía emails con reintentos y espera exponencial. */
@@ -13,7 +14,10 @@ export class OutboxWorker implements OnApplicationBootstrap, OnApplicationShutdo
   private running = false;
   private transport: Transporter | null = null;
 
-  constructor(private readonly db: Db) {}
+  constructor(
+    private readonly db: Db,
+    private readonly chat: ChatService,
+  ) {}
 
   onApplicationBootstrap() {
     if (!config.outboxWorker) return;
@@ -58,6 +62,11 @@ export class OutboxWorker implements OnApplicationBootstrap, OnApplicationShutdo
 
   async handle(type: string, payload: any, tenantId: string) {
     if (type === 'push') return this.push(payload, tenantId);
+    if (type === 'chat') {
+      const error = await this.db.tx(tenantId, null, (tx) => this.chat.deliver(tx, payload));
+      if (error) throw new Error(error);
+      return;
+    }
     if (type !== 'email') throw new Error(`Tipo de outbox desconocido: ${type}`);
     if (!this.transport) {
       this.log.log(`[email] Para: ${payload.to} · ${payload.subject}\n${payload.text}`);

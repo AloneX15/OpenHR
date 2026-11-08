@@ -7,6 +7,7 @@ import { ApprovalFlows } from '@/components/Approvals';
 import { EmployeeForm, emptyEmployee } from '@/components/EmployeeForm';
 import { FactorialMigration } from '@/components/FactorialMigration';
 import { OidcSettings } from '@/components/OidcSettings';
+import { ChatIntegrations } from '@/components/ChatIntegrations';
 import { GeoFields, KioskDevices } from '@/components/Kiosk';
 import { ChecklistTemplatesAdmin, CustomFieldsAdmin } from '@/components/Lifecycle';
 import { Badge, Card, Empty, ErrorBox, Field, Modal, Notice, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
@@ -14,7 +15,7 @@ import { api, download } from '@/lib/api';
 import { dayLabel, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
 
-type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones' | 'checklists' | 'campos' | 'migracion' | 'acceso';
+type Tab = 'personas' | 'sociedades' | 'centros' | 'festivos' | 'ausencias' | 'aprobaciones' | 'checklists' | 'campos' | 'migracion' | 'acceso' | 'integraciones';
 
 export default function OrganizationPage() {
   const { me } = useSession();
@@ -34,7 +35,7 @@ export default function OrganizationPage() {
           { id: 'aprobaciones', label: 'Circuitos de aprobación' },
           { id: 'checklists', label: 'Checklists' },
           { id: 'campos', label: 'Campos personalizados' },
-          ...(me.isAdmin ? [{ id: 'acceso' as Tab, label: 'Inicio de sesión' }, { id: 'migracion' as Tab, label: 'Migrar desde Factorial' }] : []),
+          ...(me.isAdmin ? [{ id: 'acceso' as Tab, label: 'Inicio de sesión' }, { id: 'integraciones' as Tab, label: 'Integraciones' }, { id: 'migracion' as Tab, label: 'Migrar desde Factorial' }] : []),
         ]}
       />
       {tab === 'personas' && <People />}
@@ -47,6 +48,7 @@ export default function OrganizationPage() {
       {tab === 'campos' && <CustomFieldsAdmin isAdmin={me.isAdmin} />}
       {tab === 'migracion' && me.isAdmin && <FactorialMigration />}
       {tab === 'acceso' && me.isAdmin && <OidcSettings />}
+      {tab === 'integraciones' && me.isAdmin && <ChatIntegrations />}
     </>
   );
 }

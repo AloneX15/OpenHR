@@ -67,6 +67,8 @@
 
 ## Administración
 
+- **Organización → Integraciones**: conecta un canal de Slack (webhook entrante) o de Teams (flujo de trabajo «Publicar en un canal cuando se reciba una solicitud de webhook») y elige qué se publica: anuncios, ausencias aprobadas y bienvenidas. *Probar* envía un mensaje de prueba.
+
 - **Organización → Inicio de sesión**: entrar con la cuenta de Microsoft 365 (o Google) de la empresa; incluye los pasos para registrar la aplicación en Entra ID.
 
 - **Organización → Migrar desde Factorial**: trae los datos de Factorial con una clave de API (ver [migración desde Factorial](migracion-factorial.md)).

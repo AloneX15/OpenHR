@@ -348,3 +348,7 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 .kiosk-result.ok { background: var(--success); color: var(--on-success); }
 .kiosk-result.ko { background: var(--danger); color: var(--on-primary); }
 .kiosk-video { width: 100%; border-radius: 16px; margin-top: 12px; }
+
+/* Grupo de opciones en formularios */
+.fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 0 0 12px; }
+.fieldset legend { padding: 0 4px; font-weight: 600; }

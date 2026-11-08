@@ -55,6 +55,19 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 
 Cada aviso de la bandeja se envía también a los dispositivos suscritos a través del outbox. Si el servicio responde 404 o 410, la suscripción se borra.
 
+## Slack y Teams (`/integrations/chat`)
+
+Solo administración.
+
+| Método y ruta | Descripción |
+| --- | --- |
+| `GET /integrations/chat` | Canales conectados (sin la URL: solo su dominio en `url_hint`), último envío y último error |
+| `POST /integrations/chat`, `PATCH /integrations/chat/:id` | `{ provider: slack \| teams, label, url?, companyId?, events: [announcement, absence, welcome], enabled }`. La URL debe ser de `hooks.slack.com` o de un flujo de trabajo de Teams (`logic.azure.com`, `api.powerplatform.com`); se guarda cifrada |
+| `DELETE /integrations/chat/:id` | Desconecta el canal |
+| `POST /integrations/chat/:id/test` | Envía un mensaje de prueba |
+
+Eventos: `announcement` (cada anuncio), `absence` (ausencia aprobada: nombre, tipo y fechas; nunca los tipos con datos de salud) y `welcome` (alta con incorporación desde hace una semana o futura). Se envían por el outbox, con reintentos.
+
 ## Organización (`/org`)
 
 | Método y ruta | Quién | Descripción |

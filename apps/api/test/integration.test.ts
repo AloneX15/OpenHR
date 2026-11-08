@@ -1202,3 +1202,57 @@ describe('avisos push', () => {
     expect((await luis.get('/api/notifications/push')).body.devices).toHaveLength(0);
   });
 });
+
+describe('avisos en Slack y Teams', () => {
+  let hookId: string;
+
+  it('administración conecta un canal; la URL se guarda cifrada y nunca se devuelve', async () => {
+    const url = 'https://hooks.slack.com/services/T000/B000/secreto-del-canal';
+    await marta.post('/api/integrations/chat').send({ provider: 'slack', label: 'General', url, events: ['announcement'] }).expect(403);
+    await adminAgent.post('/api/integrations/chat').send({ provider: 'slack', label: 'General', url: 'https://example.com/hook', events: ['announcement'] }).expect(400);
+    hookId = (await adminAgent.post('/api/integrations/chat').send({ provider: 'slack', label: 'General', url, events: ['announcement', 'absence', 'welcome'] }).expect(201)).body.id;
+    const list = (await adminAgent.get('/api/integrations/chat').expect(200)).body;
+    expect(list[0]).toMatchObject({ label: 'General', url_hint: 'hooks.slack.com', provider: 'slack' });
+    expect(JSON.stringify(list)).not.toContain('secreto-del-canal');
+    const raw = await owner.query('SELECT url_enc FROM chat_webhook');
+    expect(raw.rows[0].url_enc).not.toContain('secreto');
+    const audits = await owner.query(`SELECT data FROM audit_event WHERE action = 'chat_webhook.saved'`);
+    expect(JSON.stringify(audits.rows)).not.toContain('secreto');
+  });
+
+  it('anuncios, ausencias aprobadas (sin datos de salud) y bienvenidas llegan al canal', async () => {
+    await owner.query(`DELETE FROM outbox WHERE type = 'chat'`);
+    await adminAgent.post('/api/announcements').send({ companyId: null, title: 'Cena de Navidad', body: 'El 19 de diciembre', notify: false }).expect(201);
+    const types = (await adminAgent.get('/api/org/absence-types')).body;
+    const ap = types.find((t: any) => t.code === 'AP');
+    const sick = types.find((t: any) => t.code === 'IT');
+    const day = nextWeekday(200);
+    await adminAgent.post('/api/absences').send({ employmentId: luisEmp, absenceTypeId: ap.id, startDate: day, endDate: day }).expect(201);
+    await adminAgent.post('/api/absences').send({ employmentId: luisEmp, absenceTypeId: sick.id, startDate: nextWeekday(210), endDate: nextWeekday(210) }).expect(201);
+    await adminAgent
+      .post('/api/org/employees')
+      .send({ firstName: 'Bea', lastName: 'Nueva', nationalId: '55555555K', companyId, startDate: today, jobTitle: 'Administrativa', createAccount: false })
+      .expect(201);
+    const jobs = (await owner.query(`SELECT payload FROM outbox WHERE type = 'chat' ORDER BY id`)).rows.map((r) => r.payload);
+    expect(jobs.map((j) => j.title)).toEqual(['Anuncio: Cena de Navidad', `Luis Empleado estará fuera el ${day}`, 'Damos la bienvenida a Bea Nueva']);
+    expect(JSON.stringify(jobs)).not.toContain('Incapacidad');
+  });
+
+  it('el envío descifra la URL, no sigue redirecciones y anota el error si falla', async () => {
+    const { ChatService } = await import('../src/integrations/chat.service');
+    const { Db } = await import('../src/db/db.service');
+    const chat = app.get(ChatService);
+    const db = app.get(Db);
+    const calls: any[] = [];
+    const ok = (async (url: any, init: any) => (calls.push({ url: String(url), init }), new Response('ok'))) as any;
+    const err = await db.tx(tenantId, null, (tx) => chat.deliver(tx, { webhookId: hookId, title: 'Hola', text: 'Prueba' }, ok));
+    expect(err).toBeNull();
+    expect(calls[0].url).toBe('https://hooks.slack.com/services/T000/B000/secreto-del-canal');
+    expect(calls[0].init.redirect).toBe('error');
+    expect(JSON.parse(calls[0].init.body).text).toContain('*Hola*');
+    const fail = (async () => new Response('no', { status: 404 })) as any;
+    expect(await db.tx(tenantId, null, (tx) => chat.deliver(tx, { webhookId: hookId, title: 'x', text: 'y' }, fail))).toBe('El servicio respondió 404');
+    expect((await adminAgent.get('/api/integrations/chat')).body[0].last_error).toBe('El servicio respondió 404');
+    await adminAgent.post(`/api/integrations/chat/${hookId}/test`).expect(201);
+  });
+});

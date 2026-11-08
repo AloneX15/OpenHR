@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { randomUUID } from 'node:crypto';
 import { Actor, assertHr, audit, canHr, hrCompanyFilter, isHrAnywhere } from '../common/access';
 import { Tx } from '../db/db.service';
+import { ChatService } from '../integrations/chat.service';
 import { StorageService } from '../documents/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -18,6 +19,7 @@ export class CommunicationService {
   constructor(
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly chat: ChatService,
   ) {}
 
   /** Usuarios activos con relación laboral vigente en el alcance (una sociedad o todas). */
@@ -60,6 +62,7 @@ export class CommunicationService {
       link: '/anuncios',
       email: input.notify,
     });
+    await this.chat.emit(tx, 'announcement', input.companyId, { title: `Anuncio: ${input.title}`, text: input.body.slice(0, 500), link: '/anuncios' });
     await audit(tx, 'announcement.published', 'announcement', row.id, { companyId: input.companyId, title: input.title });
     return row;
   }

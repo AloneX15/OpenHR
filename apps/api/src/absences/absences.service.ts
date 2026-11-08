@@ -3,6 +3,7 @@ import { Actor, assertEmploymentAccess, assertHr, audit, canHr, employmentAccess
 import { EmploymentCalendar, isEmployed, isWorkingDay, loadCalendars } from '../common/calendar';
 import { eachDay } from '../common/dates';
 import { Tx } from '../db/db.service';
+import { ChatService } from '../integrations/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ApprovalsService } from './approvals.service';
 
@@ -43,6 +44,7 @@ export class AbsencesService {
   constructor(
     private readonly notifications: NotificationsService,
     private readonly approvals: ApprovalsService,
+    private readonly chat: ChatService,
   ) {}
 
   async balance(tx: Tx, actor: Actor, employmentId: string, year: number) {
@@ -151,8 +153,20 @@ export class AbsencesService {
         link: '/ausencias?tab=aprobar',
       });
     }
+    if (status === 'approved' && !type.sensitive) await this.announceAbsence(tx, employmentId, type.name, input.startDate, input.endDate);
     await audit(tx, 'absence.requested', 'absence_request', row.id, { days, status });
     return { id: row.id, days, status };
+  }
+
+  /** Aviso al canal del equipo. Solo nombre, tipo y fechas; las ausencias con datos de salud nunca se publican. */
+  private async announceAbsence(tx: Tx, employmentId: string, typeName: string, start: string | Date, end: string | Date) {
+    const day = (d: string | Date) => (typeof d === 'string' ? d : d.toISOString().slice(0, 10));
+    const p = await tx.one(
+      `SELECT p.first_name || ' ' || p.last_name AS name, e.company_id FROM employment e JOIN person p ON p.id = e.person_id WHERE e.id = $1`,
+      [employmentId],
+    );
+    const range = day(start) === day(end) ? `el ${day(start)}` : `del ${day(start)} al ${day(end)}`;
+    await this.chat.emit(tx, 'absence', p.company_id, { title: `${p.name} estará fuera ${range}`, text: typeName, link: '/ausencias?tab=equipo' });
   }
 
   async decide(tx: Tx, actor: Actor, requestId: string, approve: boolean, comment?: string) {
@@ -185,6 +199,7 @@ export class AbsencesService {
         link: '/ausencias',
       });
     }
+    if (approve && !r.sensitive) await this.announceAbsence(tx, r.employment_id, r.type_name, r.start_date, r.end_date);
     await audit(tx, approve ? 'absence.approved' : 'absence.rejected', 'absence_request', requestId, { comment });
     return { ok: true, status: result };
   }

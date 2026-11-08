@@ -7,6 +7,7 @@ import { zDate, zUuid } from '../common/http';
 import { isValidNationalId, normalizeNationalId } from '../common/spanish-id';
 import { addDays } from '../common/dates';
 import { Tx } from '../db/db.service';
+import { ChatService } from '../integrations/chat.service';
 import { AuthService } from '../auth/auth.service';
 
 const zSchedule = z
@@ -76,6 +77,7 @@ export class EmployeesService {
     private readonly auth: AuthService,
     private readonly checklists: ChecklistsService,
     private readonly customFields: CustomFieldsService,
+    private readonly chat: ChatService,
   ) {}
 
   async list(tx: Tx, actor: Actor, opts: { companyId?: string; q?: string; includeInactive?: boolean }) {
@@ -251,6 +253,14 @@ export class EmployeesService {
       }
     }
     await this.checklists.startFor(tx, employment.id, 'onboarding', input.startDate);
+    // Bienvenida en el canal solo para incorporaciones recientes o futuras (no al importar la plantilla actual).
+    if (input.startDate >= addDays(new Date().toISOString().slice(0, 10), -7)) {
+      const company = await tx.one('SELECT name FROM company WHERE id = $1', [input.companyId]);
+      await this.chat.emit(tx, 'welcome', input.companyId, {
+        title: `Damos la bienvenida a ${input.firstName} ${input.lastName}`,
+        text: `Se incorpora a ${company.name}${input.jobTitle ? ` como ${input.jobTitle}` : ''} el ${input.startDate}.`,
+      });
+    }
     await audit(tx, 'employee.created', 'employment', employment.id, { companyId: input.companyId });
     return { employmentId: employment.id, personId: person.id, invited };
   }
