@@ -65,7 +65,7 @@ export class DocumentsController {
       z.object({
         personId: zUuid,
         companyId: zUuid,
-        category: z.enum(['payslip', 'contract', 'certificate', 'other']),
+        category: z.enum(['payslip', 'contract', 'certificate', 'policy', 'other']),
         title: z.string().trim().min(1),
         period: zPeriod.optional(),
       }),

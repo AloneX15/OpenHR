@@ -10,6 +10,14 @@ import { useSession } from '@/lib/session';
 export default function HomePage() {
   const { me } = useSession();
   const notes = useLoad(() => api.get<any[]>('/notifications'));
+  const news = useLoad(() => api.get<any[]>('/announcements'));
+  const todo = useLoad(async () => {
+    const [policies, signatures] = await Promise.all([api.get<any[]>('/policies'), api.get<any[]>('/signatures/mine')]);
+    return {
+      policies: policies.filter((p) => p.requires_acceptance && !p.accepted_at).length,
+      signatures: signatures.filter((s) => s.status === 'pending').length,
+    };
+  });
   const pending = useLoad(() => (me.isManager || me.isHr ? api.get<any[]>('/absences/pending') : Promise.resolve([])));
   const balance = useLoad(() =>
     me.employments[0] ? api.get(`/absences/balance/${me.employments[0].id}?year=${todayIso().slice(0, 4)}`) : Promise.resolve(null),
@@ -29,6 +37,34 @@ export default function HomePage() {
           <ClockWidget me={me} />
         </Card>
         <div className="stack">
+          {todo.data && (todo.data.policies > 0 || todo.data.signatures > 0) && (
+            <Card title="Pendiente de ti">
+              <ul className="list">
+                {todo.data.signatures > 0 && (
+                  <li>
+                    <Link href="/firmas">{todo.data.signatures} documento(s) para firmar</Link>
+                  </li>
+                )}
+                {todo.data.policies > 0 && (
+                  <li>
+                    <Link href="/politicas">{todo.data.policies} política(s) por aceptar</Link>
+                  </li>
+                )}
+              </ul>
+            </Card>
+          )}
+          {news.data && news.data.length > 0 && (
+            <Card title="Anuncios" actions={<Link href="/anuncios">Ver todos</Link>}>
+              <ul className="list">
+                {news.data.slice(0, 3).map((a) => (
+                  <li key={a.id}>
+                    <strong>{a.title}</strong> {!a.read && <Badge tone="warning">Nuevo</Badge>}
+                    <div className="small muted">{a.body.slice(0, 160)}</div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           {balance.data && (
             <Card title="Vacaciones" actions={<Link href="/ausencias">Solicitar</Link>}>
               <div className="grid grid-3">

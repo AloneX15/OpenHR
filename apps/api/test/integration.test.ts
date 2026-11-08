@@ -620,3 +620,82 @@ describe('altas, bajas, traspasos y campos personalizados', () => {
     expect(asManager.map((f: any) => f.key)).toEqual(['talla_camiseta']);
   });
 });
+
+describe('anuncios, políticas y firma', () => {
+  const pdf = async (pages = 1) => {
+    const doc = await PDFDocument.create();
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    for (let i = 0; i < pages; i++) doc.addPage([595, 842]).drawText(`Página ${i + 1}`.replace('á', 'a'), { x: 50, y: 780, size: 12, font });
+    return Buffer.from(await doc.save());
+  };
+
+  it('publica anuncios para el grupo y registra quién los lee', async () => {
+    await marta.post('/api/announcements').send({ title: 'X', body: 'Y' }).expect(403);
+    const a = await adminAgent.post('/api/announcements').send({ title: 'Cena de Navidad', body: 'El 19 de diciembre a las 21:00.', pinned: true }).expect(201);
+    const list = (await luis.get('/api/announcements').expect(200)).body;
+    expect(list[0]).toMatchObject({ id: a.body.id, title: 'Cena de Navidad', read: false, pinned: true });
+    await luis.post(`/api/announcements/${a.body.id}/read`).expect(201);
+    expect((await luis.get('/api/announcements')).body[0].read).toBe(true);
+    expect((await adminAgent.get('/api/announcements')).body[0].reads).toBe(1);
+  });
+
+  it('las políticas se aceptan por versión', async () => {
+    const p1 = await adminAgent
+      .post('/api/policies')
+      .field('title', 'Desconexión digital')
+      .field('requiresAcceptance', 'true')
+      .attach('file', await pdf(), { filename: 'desconexion.pdf', contentType: 'application/pdf' })
+      .expect(201);
+    const mine = (await luis.get('/api/policies').expect(200)).body;
+    expect(mine[0]).toMatchObject({ id: p1.body.id, version: 1, accepted_at: null });
+    await luis.get(`/api/policies/${p1.body.id}/file`).expect(200);
+    await luis.post(`/api/policies/${p1.body.id}/accept`).expect(201);
+    const acc = (await adminAgent.get(`/api/policies/${p1.body.id}/acceptances`).expect(200)).body;
+    expect(acc.find((r: any) => r.name === 'Luis Empleado').accepted_at).not.toBeNull();
+    expect(acc.find((r: any) => r.name === 'Marta Jefa').accepted_at).toBeNull();
+    const series = mine[0].series_id;
+    const p2 = await adminAgent
+      .post('/api/policies')
+      .field('seriesId', series)
+      .field('title', 'Desconexión digital')
+      .attach('file', await pdf(2), { filename: 'desconexion-v2.pdf', contentType: 'application/pdf' })
+      .expect(201);
+    expect(p2.body.version).toBe(2);
+    const after = (await luis.get('/api/policies')).body;
+    expect(after.map((p: any) => [p.version, p.accepted_at])).toEqual([[2, null]]);
+  });
+
+  it('firma individual con código por email y hoja de evidencias', async () => {
+    await marta.post('/api/signatures').field('personId', 'x').field('companyId', companyId).field('title', 'X').attach('file', await pdf(), 'x.pdf').expect(400);
+    const { rows } = await owner.query(`SELECT person_id FROM app_user WHERE email = 'luis@demo.test'`);
+    const req = await adminAgent
+      .post('/api/signatures')
+      .field('personId', rows[0].person_id)
+      .field('companyId', companyId)
+      .field('title', 'Anexo de teletrabajo')
+      .attach('file', await pdf(2), { filename: 'anexo.pdf', contentType: 'application/pdf' })
+      .expect(201);
+    const id = req.body.id;
+    await marta.post(`/api/signatures/${id}/code`).expect(403);
+    await luis.post(`/api/signatures/${id}/sign`).send({ code: '000000', consent: true }).expect(400); // sin código pedido
+    const sent = await luis.post(`/api/signatures/${id}/code`).expect(201);
+    expect(sent.body.sentTo).toMatch(/^l\*\*\*@demo\.test$/);
+    const mail = await owner.query(`SELECT payload FROM outbox WHERE payload->>'subject' LIKE 'Código para firmar%' ORDER BY id DESC LIMIT 1`);
+    const code = /código de firma es: (\d{6})/.exec(mail.rows[0].payload.text)![1];
+    const wrong = code === '123456' ? '654321' : '123456';
+    await luis.post(`/api/signatures/${id}/sign`).send({ code: wrong, consent: true }).expect(400);
+    const attempts = await owner.query('SELECT otp_attempts FROM signature_request WHERE id = $1', [id]);
+    expect(attempts.rows[0].otp_attempts).toBe(1);
+    await luis.post(`/api/signatures/${id}/sign`).send({ code, consent: false }).expect(400);
+    const signed = await luis.post(`/api/signatures/${id}/sign`).send({ code, consent: true }).expect(201);
+    expect(signed.body.sha256).toMatch(/^[0-9a-f]{64}$/);
+    await luis.post(`/api/signatures/${id}/sign`).send({ code, consent: true }).expect(409);
+    const file = await luis.get(`/api/signatures/${id}/file?signed=true`).buffer(true).expect(200);
+    expect((await PDFDocument.load(file.body)).getPageCount()).toBe(3);
+    const ev = (await adminAgent.get(`/api/signatures/${id}/evidence`).expect(200)).body;
+    expect(ev.evidence).toMatchObject({ method: 'session+email_otp', signer: { name: 'Luis Empleado', nationalId: '00000000T' } });
+    const docs = (await luis.get('/api/documents/mine')).body;
+    expect(docs.some((d: any) => d.category === 'signed' && d.title === 'Anexo de teletrabajo (firmado)')).toBe(true);
+    await marta.get(`/api/signatures/${id}/file`).expect(403);
+  });
+});

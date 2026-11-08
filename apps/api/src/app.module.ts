@@ -1,6 +1,7 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { AbsencesModule } from './absences/absences.module';
 import { AuthModule } from './auth/auth.module';
+import { CommunicationModule } from './communication/communication.module';
 import { Public } from './common/http';
 import { Db } from './db/db.service';
 import { DbModule } from './db/db.module';
@@ -24,7 +25,7 @@ class HealthController {
 }
 
 @Module({
-  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule],
+  imports: [DbModule, NotificationsModule, AuthModule, OrgModule, TimeModule, AbsencesModule, DocumentsModule, ExportsModule, ShiftsModule, CommunicationModule],
   controllers: [HealthController],
 })
 export class AppModule {}

@@ -156,6 +156,28 @@ Las solicitudes devueltas por `/absences/mine` y `/absences/pending` incluyen `s
 | `POST /payslips/batches/:id/publish` | H | Exige todas las páginas revisadas. Une las páginas de cada persona y la avisa |
 | `POST /payslips/batches/:id/discard` | H | |
 
+## Anuncios, políticas y firma
+
+| Método y ruta | Quién | Descripción |
+| --- | --- | --- |
+| `GET /announcements?archived=` | S | Anuncios de mis sociedades y del grupo, con `read` y, para RR. HH., `reads` |
+| `POST /announcements` | H (sociedad) / A o RR. HH. del grupo (grupo) | `{ companyId?, title, body, pinned, expiresAt?, notify }`. Avisa en la app y, si `notify`, por email |
+| `PATCH /announcements/:id` | Igual | `title`, `body`, `pinned`, `archived`, `expiresAt` |
+| `POST /announcements/:id/read` | S | Marcar como leído |
+| `GET /policies` | S | Políticas vigentes con mi `accepted_at` |
+| `POST /policies` | H / A | Multipart: `file` (PDF), `title`, `description?`, `requiresAcceptance`, `companyId?` o `seriesId` (nueva versión) |
+| `GET /policies/:id/file` | S (de su ámbito) | PDF |
+| `POST /policies/:id/accept` | S | Registra la aceptación con la huella del fichero |
+| `GET /policies/:id/acceptances` | H | Quién la ha aceptado y quién falta |
+| `GET /signatures/mine`, `GET /signatures` | S / H | Mis firmas / solicitudes de mis sociedades |
+| `POST /signatures` | H | Multipart: `file` (PDF), `personId`, `companyId`, `title`, `message?`, `dueDate?` |
+| `GET /signatures/:id/file?signed=` | Firmante / H | Original o firmado |
+| `POST /signatures/:id/code` | Firmante | Envía un código de 6 dígitos al email (10 min) |
+| `POST /signatures/:id/sign` | Firmante | `{ code, consent: true }`. Cinco intentos por código |
+| `POST /signatures/:id/decline` | Firmante | `{ reason }` |
+| `POST /signatures/:id/cancel` | H | Solo pendientes |
+| `GET /signatures/:id/evidence` | Firmante / H | Evidencias de la firma |
+
 ## Exportaciones e importación
 
 | Método y ruta | Quién | Descripción |

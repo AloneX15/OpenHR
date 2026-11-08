@@ -324,3 +324,6 @@ tr.weekend td { color: var(--muted); background: var(--surface-2); }
 
 .task { padding: 8px 0; }
 .template-item { display: grid; grid-template-columns: 1fr 150px 80px auto; gap: 6px; margin-bottom: 6px; align-items: center; }
+
+.announcement-body { white-space: pre-wrap; }
+.card.unread { border-left: 3px solid var(--accent-strong); }

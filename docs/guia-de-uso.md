@@ -12,6 +12,10 @@
 
 **Nóminas y documentos.** En **Documentos** tienes tus nóminas, contratos y certificados. Te avisamos por email cuando hay uno nuevo.
 
+**Firmas.** Si te piden firmar un documento, aparece en **Firmas** y en Inicio. Léelo, pide el código (llega a tu email), escríbelo y marca la declaración. La copia firmada queda en tus documentos.
+
+**Anuncios y políticas.** En **Anuncios** están las novedades de la empresa. En **Políticas**, las normas internas: algunas hay que leerlas y aceptarlas.
+
 **Tareas.** En **Tareas** ves lo que te toca de las altas, bajas y traspasos en curso (por ejemplo, leer el manual de acogida). Márcalas al terminarlas.
 
 **Tu cuenta.** En **Mi cuenta** (tu nombre, abajo a la izquierda) cambias la contraseña, activas la verificación en dos pasos y eliges el tema: Claro, Oscuro o Sistema.
@@ -41,6 +45,7 @@
   4. *Publicar*: cada persona recibe su nómina y un aviso.
 - **Organización → Festivos**: añade los autonómicos y locales de cada centro. Los nacionales se cargan solos.
 - **Equipo → persona → Ficha → Editar**: activar la bolsa de horas y desde qué fecha. En **Control horario**, *Registrar movimiento* para el saldo inicial o las horas pagadas en nómina.
+- **Anuncios, Políticas y Firmas**: publicar anuncios, subir políticas (o nuevas versiones) y ver quién falta por aceptarlas, y pedir firmas de documentos PDF.
 - **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
 
 ## Administración

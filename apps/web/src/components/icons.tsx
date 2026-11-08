@@ -17,7 +17,10 @@ import { DownloadIcon } from '@animateicons/react/lucide/download-icon';
 import { FileTextIcon } from '@animateicons/react/lucide/file-text-icon';
 import { HouseIcon } from '@animateicons/react/lucide/house-icon';
 import { LogOutIcon } from '@animateicons/react/lucide/log-out-icon';
+import { MegaphoneIcon } from '@animateicons/react/lucide/megaphone-icon';
 import { MenuIcon } from '@animateicons/react/lucide/menu-icon';
+import { ScrollTextIcon } from '@animateicons/react/lucide/scroll-text-icon';
+import { SignatureIcon } from '@animateicons/react/lucide/signature-icon';
 import { MonitorIcon } from '@animateicons/react/lucide/monitor-icon';
 import { MoonIcon } from '@animateicons/react/lucide/moon-icon';
 import { PlaneIcon } from '@animateicons/react/lucide/plane-icon';
@@ -58,6 +61,9 @@ export const Icons = {
   edit: PencilIcon,
   check: CheckIcon,
   tasks: ClipboardCheckIcon,
+  announcements: MegaphoneIcon,
+  policies: ScrollTextIcon,
+  sign: SignatureIcon,
   security: ShieldCheckIcon,
 } satisfies Record<string, AnyIcon>;
 

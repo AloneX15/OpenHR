@@ -255,6 +255,19 @@ Un PDF con las nóminas de una sociedad y un mes: `period`, `file_id`, `page_cou
 #### `payslip_page`
 Una fila por página: `detected_ids` (DNI/NIE válidos encontrados), `suggested_person_id`, `person_id`, `review_status` (`pending`, `confirmed`, `skipped`). Una página confirmada debe tener persona; el lote no se publica con páginas pendientes.
 
+### Comunicación y firma
+
+#### `announcement` y `announcement_read`
+Anuncios de una sociedad o de todo el grupo (`company_id` nulo): `title`, `body`, `pinned`, `published_at`, `expires_at`, `archived`. `announcement_read` guarda quién lo leyó y cuándo.
+
+#### `policy` y `policy_acceptance`
+Políticas internas en PDF (`file_id`), por sociedad o del grupo. `series_id` agrupa las versiones de una misma política (`version` única por serie); publicar una versión archiva la anterior y obliga a aceptarla de nuevo. La aceptación guarda persona, usuario, fecha, IP, navegador y el SHA-256 del fichero aceptado.
+
+#### `signature_request`
+Solicitud de firma de un PDF a una persona: `title`, `message`, `file_id`, `status` (`pending`, `signed`, `declined`, `cancelled`), `due_date`. El código de un solo uso se guarda como hash (`otp_hash`, `otp_expires_at`, `otp_attempts`, máximo 5). Al firmar: `signed_file_id` (PDF con hoja de evidencias), `document_id` (copia en «Mis documentos», categoría `signed`) y `evidence` (jsonb con firmante, DNI/NIE, email, fecha, IP, navegador, método, declaración y huellas del original y del firmado).
+
+`document.category` admite además `policy` y `signed`.
+
 ### Sistema
 
 #### `audit_event` (append-only)
@@ -295,6 +308,7 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `007_shifts_hour_bank.sql` | Turnos, reglas de descanso por sociedad y bolsa de horas |
 | `008_approvals.sql` | Circuitos de aprobación, pasos por solicitud y delegaciones |
 | `009_lifecycle_custom_fields.sql` | Checklists de alta, baja y traspaso, traspasos y campos personalizados |
+| `010_communication_signature.sql` | Anuncios, políticas con aceptación y firma individual |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 

@@ -73,5 +73,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   payslip: 'Nómina',
   contract: 'Contrato',
   certificate: 'Certificado',
+  policy: 'Política',
+  signed: 'Firmado',
   other: 'Otro',
 };
