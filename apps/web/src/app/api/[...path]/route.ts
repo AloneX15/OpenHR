@@ -11,7 +11,11 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const target = `${API_URL}/api/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
   const headers = new Headers(req.headers);
   HOP_BY_HOP.forEach((h) => headers.delete(h));
-  headers.set('x-forwarded-for', req.headers.get('x-forwarded-for') ?? '');
+  // No se reenvían cabeceras de IP que el cliente puede falsear. Si hay un proxy inverso
+  // de confianza delante, que fije X-Real-IP y se añada aquí.
+  headers.delete('x-forwarded-for');
+  headers.delete('x-real-ip');
+  headers.delete('forwarded');
   const hasBody = !['GET', 'HEAD'].includes(req.method);
   const res = await fetch(target, {
     method: req.method,

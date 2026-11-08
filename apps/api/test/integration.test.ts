@@ -422,4 +422,18 @@ describe('importación', () => {
     const sara = await adminAgent.get(`/api/org/employees/${list[0].id}`).expect(200);
     expect(sara.body.weekly_minutes).toBe(1200);
   });
+
+  it('importa también desde Excel (.xlsx), con fechas como celdas de fecha', async () => {
+    const { default: writeXlsxFile } = await import('write-excel-file/node');
+    const cell = (value: unknown) => ({ value }) as any;
+    const sheet = [
+      ['Nombre', 'Apellidos', 'DNI', 'CIF sociedad', 'Fecha alta', 'Horas semanales'].map(cell),
+      ['Elena', 'Mora', '33333333P', 'B12345678', new Date(Date.UTC(2024, 4, 2)), 30].map((v) => ({ value: v, ...(v instanceof Date ? { format: 'dd/mm/yyyy' } : {}) }) as any),
+    ];
+    const xlsx = await writeXlsxFile(sheet as any).toBuffer();
+    const r = await adminAgent.post('/api/imports/employees?dryRun=false').attach('file', xlsx, 'personas.xlsx').expect(201);
+    expect(r.body).toMatchObject({ dryRun: false, created: 1 });
+    const elena = (await adminAgent.get('/api/org/employees?q=elena')).body[0];
+    expect(elena).toMatchObject({ start_date: '2024-05-02', national_id: '33333333P' });
+  });
 });

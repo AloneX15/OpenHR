@@ -1,6 +1,13 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { config } from '../config';
 
+/** Comparación de cadenas en tiempo constante (secretos, tokens). */
+export function safeEqual(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
+}
+
 export function sha256(data: string | Buffer): string {
   return createHash('sha256').update(data).digest('hex');
 }

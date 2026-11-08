@@ -1,17 +1,11 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, Post, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { config } from '../config';
+import { safeEqual } from '../common/crypto';
 import { CurrentUser, parse, Public, SessionUser } from '../common/http';
 import { AuthService } from './auth.service';
 import { SESSION_COOKIE, signSession } from './session';
-
-function safeEqual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
 
 const zEmail = z.string().trim().toLowerCase().email('Email no válido');
 
@@ -49,10 +43,11 @@ export class AuthController {
         lastName: z.string().trim().min(1),
         email: zEmail,
         password: z.string().min(10, 'Mínimo 10 caracteres'),
+        setupToken: z.string().optional(),
       }),
       body,
     );
-    if (config.setupToken && !safeEqual(String((body as any)?.setupToken ?? ''), config.setupToken)) {
+    if (config.setupToken && !safeEqual(input.setupToken ?? '', config.setupToken)) {
       throw new ForbiddenException('Token de configuración incorrecto');
     }
     const user = await this.auth.setup(input);

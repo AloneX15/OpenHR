@@ -3,7 +3,7 @@
 import { FormEvent, Fragment, useState } from 'react';
 import { api, download } from '@/lib/api';
 import { addDays, dayLabel, KIND_LABEL, monthBounds, shortHm, timeIn, todayIso, weekStart } from '@/lib/format';
-import { IconButton } from './icons';
+import { Icon, IconButton } from './icons';
 import { Badge, Card, ErrorBox, Field, Modal, Notice, Tabs, useAction, useLoad } from './ui';
 
 type View = 'week' | 'month';
@@ -137,19 +137,15 @@ export function TimeSheet({ employmentId, canEdit, canExport = true }: { employm
                               .join('\n')}
                           >
                             {KIND_LABEL[e.kind].split(' ')[0]} {timeIn(e.occurredAt, tz)}
-                            {e.source === 'manual' && ' ✎'}
+                            {e.source === 'manual' && <Icon name="edit" size={12} className="entry-mark" />}
                             {canEdit && !e.voided && (
-                              <button className="btn-icon" style={{ fontSize: '0.8rem', padding: '0 0 0 4px' }} onClick={() => setVoiding(e)} aria-label="Anular">
-                                ×
-                              </button>
+                              <IconButton icon="close" size={14} className="btn-icon entry-action" onClick={() => setVoiding(e)} aria-label="Anular fichaje" />
                             )}
                           </span>
                         </Fragment>
                       ))}
                       {canEdit && !quiet && d.date <= todayIso() && (
-                        <button className="btn-icon" style={{ fontSize: '0.9rem' }} title="Añadir fichaje" onClick={() => setAdding(d.date)}>
-                          +
-                        </button>
+                        <IconButton icon="plus" size={16} className="btn-icon" title="Añadir fichaje" aria-label="Añadir fichaje" onClick={() => setAdding(d.date)} />
                       )}
                     </div>
                   </td>
@@ -171,7 +167,7 @@ export function TimeSheet({ employmentId, canEdit, canExport = true }: { employm
         </table>
       </div>
       <p className="muted small" style={{ marginTop: 12 }}>
-        ✎ fichaje añadido a mano. Los fichajes no se borran: al corregir uno queda anulado y tachado, con su motivo, y se conserva en el registro.
+        El lápiz marca un fichaje añadido a mano. Los fichajes no se borran: al corregir uno queda anulado y tachado, con su motivo, y se conserva en el registro.
       </p>
       {adding && <AddEntryModal employmentId={employmentId} date={adding} onClose={() => setAdding(null)} onDone={reload} />}
       {voiding && <VoidModal entry={voiding} tz={tz} onClose={() => setVoiding(null)} onDone={reload} />}

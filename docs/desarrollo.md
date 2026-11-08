@@ -73,3 +73,27 @@ apps/web/
   src/lib/             cliente de la API, sesión, formato, tema
 docs/                  documentación
 ```
+
+## Agentes de IA
+
+El proyecto trae instaladas las [skills de Matt Pocock](https://github.com/mattpocock/skills) (licencia MIT) en `.claude/skills/`; `skills-lock.json` fija la versión. Claude Code las detecta al abrir el repositorio. Para actualizarlas: `npx skills@latest update -p`.
+
+Configuración (hecha con `/setup-matt-pocock-skills`):
+
+- `CLAUDE.md`: reglas del proyecto para agentes y bloque «Agent skills».
+- `GLOSSARY.md`: vocabulario del dominio (relación laboral, fichaje, anulación, sello…). Úsalo en código, tests e incidencias; `/domain-modeling` lo mantiene.
+- `docs/agents/issue-tracker.md`: las incidencias van a GitHub Issues con `gh`.
+- `docs/agents/triage-labels.md`: etiquetas `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human` y `wontfix` (ya creadas en GitHub).
+- `docs/agents/domain.md`: cómo leen los agentes el glosario y los ADR.
+
+Las más útiles aquí:
+
+| Skill | Para qué |
+| --- | --- |
+| `/tdd` | Nueva funcionalidad o bug con test primero, una porción vertical cada vez |
+| `/code-review` | Revisar cambios desde un commit en dos ejes: estándares (`CLAUDE.md`, `docs/`) y especificación |
+| `/diagnosing-bugs` | Bucle disciplinado para bugs difíciles o regresiones de rendimiento |
+| `/to-spec`, `/to-tickets`, `/implement` | De una conversación a especificación, incidencias y código |
+| `/grill-with-docs`, `/domain-modeling` | Afinar el modelo del dominio y registrar ADR |
+| `/improve-codebase-architecture` | Buscar módulos que profundizar |
+| `/pr` | Cuerpo de las pull requests |

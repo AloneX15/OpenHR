@@ -27,7 +27,7 @@ export default function TeamPage() {
         title="Personas"
         actions={
           <div className="row">
-            <input placeholder="Buscar por nombre, DNI o email" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+            <input type="search" aria-label="Buscar personas" placeholder="Buscar por nombre, DNI o email" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
             <label className="check" style={{ margin: 0 }}>
               <input type="checkbox" checked={inactive} onChange={(e) => setInactive(e.target.checked)} /> Incluir bajas
             </label>

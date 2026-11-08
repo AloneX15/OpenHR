@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC } from '../common/http';
 import { Db } from '../db/db.service';
+import { sessionState } from './session-state';
 import { SESSION_COOKIE, verifySession } from './session';
 
 /**
@@ -23,11 +24,8 @@ export class AuthGuard implements CanActivate {
     const token = req.cookies?.[SESSION_COOKIE];
     const session = token ? verifySession(token) : null;
     if (!session) throw new UnauthorizedException('Inicia sesión');
-    const [row] = await this.db.raw<{ is_active: boolean; session_version: number }>(
-      'SELECT * FROM auth_session_check($1, $2)',
-      [session.userId, session.tenantId],
-    );
-    if (!row || !row.is_active || row.session_version !== session.sv) {
+    const state = await sessionState(this.db, session);
+    if (!state || !state.isActive || state.sessionVersion !== session.sessionVersion) {
       throw new UnauthorizedException('Tu sesión ha caducado, vuelve a iniciar sesión');
     }
     req.user = { userId: session.userId, tenantId: session.tenantId };

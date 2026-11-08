@@ -23,7 +23,7 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 
 ### Autenticación y sesiones
 - Contraseñas con **bcrypt (coste 12)**, mínimo 10 caracteres. Hash ficticio para igualar tiempos si el email no existe.
-- **Límite de intentos**: 10 por IP y email y 20 por cuenta cada 15 minutos (la IP se puede falsear tras un proxy; el límite por cuenta no). MFA, 10 intentos por usuario.
+- **Límite de intentos**: 10 por IP y email y 20 por cuenta cada 15 minutos; MFA, 10 intentos por usuario. La web no reenvía a la API las cabeceras `X-Forwarded-For`, `X-Real-IP` ni `Forwarded` del cliente, para que no se pueda falsear la IP.
 - **MFA TOTP** (RFC 6238) con el secreto cifrado con AES-256-GCM. Desactivarlo exige la contraseña.
 - **JWT HS256** con algoritmo fijado, en cookie `HttpOnly`, `SameSite=Lax` y `Secure` cuando `PUBLIC_URL` es HTTPS.
 - **Sesiones revocables**: cada JWT lleva la versión de sesión de la cuenta; cambiar la contraseña o el email, activar o desactivar MFA o desactivar la cuenta la incrementa y cierra todas las sesiones al instante ([ADR 0003](adr/0003-sesiones.md)).
@@ -31,7 +31,7 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - **Configuración inicial protegible** con `SETUP_TOKEN`, para que nadie reclame una instalación recién expuesta.
 
 ### Web y HTTP
-- **CSRF**: `SameSite=Lax` y comprobación de `Origin` en toda petición que modifica datos.
+- **CSRF**: cookie `SameSite=Lax` y, en toda petición que modifica datos y trae cabecera `Origin` (los navegadores la envían siempre en peticiones entre sitios), comprobación de que coincide con `PUBLIC_URL`. Las peticiones sin `Origin` no vienen de un navegador de otro sitio y no pueden aprovechar la cookie de la víctima.
 - **Cabeceras**: `Content-Security-Policy` (sin orígenes externos, `object-src 'none'`, `frame-ancestors 'self'`), `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
 - **Descargas** como `attachment`, `no-store` y `nosniff`. Los CSV neutralizan fórmulas (`=`, `+`, `-`, `@`).
 - **Errores** sin trazas ni detalles de PostgreSQL (que podrían revelar, por ejemplo, que un email existe en otra organización).
@@ -71,6 +71,10 @@ Revisión del código fuente siguiendo la metodología de la skill `security-aud
 | 8 | JWT sin algoritmo fijado al verificar | Endurecimiento | `algorithms: ['HS256']` |
 | 9 | Sin CSP ni `Permissions-Policy` | Endurecimiento | Cabeceras en la web |
 | 10 | Dependencias con avisos (nodemailer, csv-parse, multer) | Alto/medio según el aviso | Actualizadas |
+| 11 | La web reenviaba el `X-Forwarded-For` del cliente a la API | Medio: eludir el límite por IP | La web elimina esas cabeceras (hallado en la revisión de código posterior) |
+| 12 | Al dar de alta por email se podía fusionar a dos personas con DNI distintos | Medio: datos de una persona visibles para otra | Solo se reutiliza la persona si el DNI no lo contradice |
+| 11 | La web reenviaba el `X-Forwarded-For` del cliente a la API | Medio: eludir el límite por IP | La web elimina esas cabeceras (hallado en la revisión de código posterior) |
+| 12 | Al dar de alta por email se podía fusionar a dos personas con DNI distintos | Medio: datos de una persona visibles para otra | Solo se reutiliza la persona si el DNI no lo contradice |
 
 Los tests de integración cubren los puntos 1, 3 y 4.
 

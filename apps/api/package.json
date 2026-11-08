@@ -24,6 +24,7 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
     "pg": "^8.16.0",
+    "read-excel-file": "^9.3.14",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.0.0"
@@ -43,6 +44,7 @@
     "supertest": "^7.1.0",
     "typescript": "~5.9.3",
     "unplugin-swc": "^1.5.5",
-    "vitest": "^3.2.0"
+    "vitest": "^3.2.0",
+    "write-excel-file": "^4.1.1"
   }
 }

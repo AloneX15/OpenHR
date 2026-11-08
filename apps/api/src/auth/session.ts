@@ -13,11 +13,11 @@ export function signSession(user: SessionUser, sessionVersion: number): string {
   });
 }
 
-export function verifySession(token: string): (SessionUser & { sv: number }) | null {
+export function verifySession(token: string): (SessionUser & { sessionVersion: number }) | null {
   try {
     const p = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] }) as jwt.JwtPayload;
     if (p.typ !== 'session' || !p.sub || !p.tid || typeof p.sv !== 'number') return null;
-    return { userId: p.sub, tenantId: p.tid, sv: p.sv };
+    return { userId: p.sub, tenantId: p.tid, sessionVersion: p.sv };
   } catch {
     return null;
   }

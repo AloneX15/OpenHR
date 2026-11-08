@@ -42,7 +42,7 @@ src/
 
 ## Flujo de una petición
 
-1. El navegador llama a `/api/...` en la web; el route handler la reenvía a la API con cookies y cuerpo.
+1. El navegador llama a `/api/...` en la web; el route handler la reenvía a la API con cookies y cuerpo, sin las cabeceras de IP que el cliente podría falsear.
 2. Un middleware rechaza peticiones de escritura con un `Origin` distinto de `PUBLIC_URL`.
 3. `AuthGuard` verifica el JWT (HS256) y, con `auth_session_check()`, que la cuenta está activa y la versión de sesión coincide.
 4. El controlador valida la entrada con zod y abre `Db.tx(tenantId, userId, fn)`: `BEGIN`, `set_config('app.tenant_id', …, true)`, trabajo, `COMMIT`.

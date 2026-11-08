@@ -115,7 +115,7 @@ function MfaCard({ enabled, onChange }: { enabled: boolean; onChange: () => Prom
         >
           <p>1. Escanea este código con tu app de autenticación:</p>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          {qr && <img src={qr} alt="Código QR para la app de autenticación" width={200} height={200} style={{ background: '#fff', borderRadius: 8 }} />}
+          {qr && <img src={qr} alt="Código QR para la app de autenticación" width={200} height={200} style={{ background: 'var(--paper)', borderRadius: 8 }} />}
           <p className="small muted">
             O introduce la clave a mano: <span className="mono">{setup.secret}</span>
           </p>

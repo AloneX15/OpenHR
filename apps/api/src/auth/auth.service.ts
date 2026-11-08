@@ -8,6 +8,7 @@ import { Db, Tx } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createTenantDefaults } from '../org/defaults';
 import { RateLimiter } from './rate-limit';
+import { sessionState } from './session-state';
 import { signMfaChallenge, signPasswordToken, verifyMfaChallenge, verifyPasswordToken } from './session';
 
 export const MIN_PASSWORD = 10;
@@ -29,17 +30,18 @@ export class AuthService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  async login(email: string, password: string, ip: string): Promise<LoginResult> {
-    const key = `${ip}:${email.toLowerCase()}`;
+  async login(rawEmail: string, password: string, ip: string): Promise<LoginResult> {
+    const email = rawEmail.trim().toLowerCase();
+    const key = `${ip}:${email}`;
     this.loginLimiter.check(key);
-    this.accountLimiter.check(email.toLowerCase());
+    this.accountLimiter.check(email);
     const [row] = await this.db.raw('SELECT * FROM auth_find_user($1)', [email]);
     const ok = await bcrypt.compare(password, row?.password_hash ?? DUMMY_HASH);
     if (!row || !row.password_hash || !ok || !row.is_active) {
       throw new UnauthorizedException('Email o contraseña incorrectos');
     }
     this.loginLimiter.reset(key);
-    this.accountLimiter.reset(email.toLowerCase());
+    this.accountLimiter.reset(email);
     const user = { userId: row.user_id, tenantId: row.tenant_id };
     if (row.totp_enabled) return { mfaRequired: true, challenge: signMfaChallenge(user) };
     await this.touchLogin(user);
@@ -69,9 +71,9 @@ export class AuthService {
 
   /** Versión de sesión vigente: se usa para reemitir la cookie tras un cambio sensible. */
   async sessionVersion(user: SessionUser): Promise<number> {
-    const [row] = await this.db.raw<{ session_version: number }>('SELECT * FROM auth_session_check($1, $2)', [user.userId, user.tenantId]);
-    if (!row) throw new UnauthorizedException();
-    return row.session_version;
+    const state = await sessionState(this.db, user);
+    if (!state) throw new UnauthorizedException();
+    return state.sessionVersion;
   }
 
   async me(user: SessionUser) {

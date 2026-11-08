@@ -20,6 +20,7 @@ import { MenuIcon } from '@animateicons/react/lucide/menu-icon';
 import { MonitorIcon } from '@animateicons/react/lucide/monitor-icon';
 import { MoonIcon } from '@animateicons/react/lucide/moon-icon';
 import { PlaneIcon } from '@animateicons/react/lucide/plane-icon';
+import { PencilIcon } from '@animateicons/react/lucide/pencil-icon';
 import { PlusIcon } from '@animateicons/react/lucide/plus-icon';
 import { SettingsIcon } from '@animateicons/react/lucide/settings-icon';
 import { ShieldCheckIcon } from '@animateicons/react/lucide/shield-check-icon';
@@ -53,6 +54,7 @@ export const Icons = {
   menu: MenuIcon,
   close: XIcon,
   plus: PlusIcon,
+  edit: PencilIcon,
   check: CheckIcon,
   security: ShieldCheckIcon,
 } satisfies Record<string, AnyIcon>;

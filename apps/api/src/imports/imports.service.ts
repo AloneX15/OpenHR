@@ -32,21 +32,65 @@ export function parseDate(value: string): string | null {
   return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === iso ? iso : null;
 }
 
+/** «Fecha de alta» → «fecha_de_alta»: minúsculas, sin tildes y con guiones bajos. */
+const normalizeHeader = (h: string) =>
+  String(h ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '_');
+
+function toRows(records: Record<string, string>[]): Row[] {
+  if (!records.length) throw new BadRequestException('El fichero no tiene filas');
+  const missing = ['nombre', 'apellidos', 'cif_sociedad', 'fecha_alta'].filter((c) => !(c in records[0]));
+  if (missing.length) throw new BadRequestException(`Faltan columnas obligatorias: ${missing.join(', ')}`);
+  return records.map((r) => Object.fromEntries(IMPORT_COLUMNS.map((c) => [c, r[c] ?? ''])) as Row);
+}
+
 export function parseEmployeeCsv(data: Buffer): Row[] {
   const text = data.toString('utf8').replace(/^﻿/, '');
   const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
   const delimiter = (firstLine.match(/;/g)?.length ?? 0) >= (firstLine.match(/,/g)?.length ?? 0) ? ';' : ',';
   const records: Record<string, string>[] = parseCsv(text, {
     delimiter,
-    columns: (header: string[]) => header.map((h) => h.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '_')),
+    columns: (header: string[]) => header.map(normalizeHeader),
     skip_empty_lines: true,
     trim: true,
     relax_column_count: true,
   });
-  if (!records.length) throw new BadRequestException('El fichero no tiene filas');
-  const missing = ['nombre', 'apellidos', 'cif_sociedad', 'fecha_alta'].filter((c) => !(c in records[0]));
-  if (missing.length) throw new BadRequestException(`Faltan columnas obligatorias: ${missing.join(', ')}`);
-  return records.map((r) => Object.fromEntries(IMPORT_COLUMNS.map((c) => [c, r[c] ?? ''])) as Row);
+  return toRows(records);
+}
+
+/** Valor de una celda de Excel como texto (las fechas, en AAAA-MM-DD). */
+function cellText(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  return String(v).trim();
+}
+
+/** Primera hoja de un .xlsx; la primera fila son las cabeceras. */
+export async function parseEmployeeXlsx(data: Buffer): Promise<Row[]> {
+  let sheet: unknown[][];
+  try {
+    // read-excel-file se publica como ESM: se importa en tiempo de ejecución.
+    const { readSheet } = await import('read-excel-file/node');
+    sheet = (await readSheet(data)) as unknown[][];
+  } catch {
+    throw new BadRequestException('No se puede leer el fichero Excel');
+  }
+  const [header, ...body] = sheet;
+  if (!header) throw new BadRequestException('El fichero no tiene filas');
+  const keys = header.map((h) => normalizeHeader(cellText(h)));
+  const records = body
+    .filter((row) => row.some((c) => cellText(c) !== ''))
+    .map((row) => Object.fromEntries(keys.map((k, i) => [k, cellText(row[i])])));
+  return toRows(records);
+}
+
+/** CSV o Excel (.xlsx) según el contenido: los .xlsx son ZIP y empiezan por «PK». */
+export function parseEmployeeFile(data: Buffer): Promise<Row[]> {
+  return data.subarray(0, 2).toString('latin1') === 'PK' ? parseEmployeeXlsx(data) : Promise.resolve(parseEmployeeCsv(data));
 }
 
 @Injectable()
@@ -58,7 +102,7 @@ export class ImportsService {
    * escribe nada (dryRun o no). La importación es atómica: o entran todas o ninguna.
    */
   async importEmployees(tx: Tx, actor: Actor, data: Buffer, dryRun: boolean) {
-    const rows = parseEmployeeCsv(data);
+    const rows = await parseEmployeeFile(data);
     if (rows.length > 5000) throw new BadRequestException('Máximo 5000 filas por importación');
     const companies = await tx.query('SELECT id, tax_id FROM company');
     const companyByCif = new Map(companies.map((c) => [c.tax_id.toUpperCase(), c.id]));

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 const KEY = 'openhr-theme';
+const EVENT = 'openhr:theme';
 
 /**
  * Script que se ejecuta antes de pintar la página para aplicar el tema guardado y evitar
@@ -27,11 +28,16 @@ export function useTheme(): [ThemePreference, (p: ThemePreference) => void] {
     } catch {
       /* almacenamiento no disponible */
     }
+    // Mantiene sincronizados todos los selectores de la página.
+    const onChange = (e: Event) => setPref((e as CustomEvent<ThemePreference>).detail);
+    window.addEventListener(EVENT, onChange);
+    return () => window.removeEventListener(EVENT, onChange);
   }, []);
 
   const update = useCallback((p: ThemePreference) => {
     setPref(p);
     apply(p);
+    window.dispatchEvent(new CustomEvent(EVENT, { detail: p }));
     try {
       if (p === 'system') localStorage.removeItem(KEY);
       else localStorage.setItem(KEY, p);

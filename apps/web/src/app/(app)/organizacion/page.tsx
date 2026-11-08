@@ -43,7 +43,7 @@ function People() {
   return (
     <div className="grid grid-2">
       <Card title="Alta individual">
-        <p className="muted">Da de alta a una persona en una sociedad. Si ya trabaja en otra sociedad del grupo, se reutiliza su ficha por el DNI.</p>
+        <p className="muted">Da de alta a una persona en una sociedad. Si ya trabaja en otra sociedad del grupo, se reutilizan sus datos de persona por el DNI.</p>
         <IconButton icon="plus" className="btn btn-primary" onClick={() => setCreating(true)}>
           Nueva persona
         </IconButton>
@@ -77,7 +77,7 @@ function ImportCard() {
       setResult(await api.upload(`/imports/employees?dryRun=${dryRun}`, form));
     });
   return (
-    <Card title="Importar desde CSV">
+    <Card title="Importar desde CSV o Excel">
       <p className="muted">
         Para migrar la plantilla de golpe (por ejemplo, exportada de Factorial o de una hoja de cálculo).{' '}
         <button className="btn btn-ghost btn-sm" onClick={() => action.run(() => download('/imports/employees/template'))}>
@@ -85,10 +85,10 @@ function ImportCard() {
         </button>
       </p>
       <ErrorBox error={action.error} />
-      <Field label="Fichero CSV (separado por ; o ,)">
+      <Field label="Fichero CSV (separado por ; o ,) o Excel (.xlsx)">
         <input
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setResult(null);
@@ -126,8 +126,8 @@ function ImportCard() {
                     Fila {l.line} · {l.name}
                   </strong>
                   {l.errors.map((e: string) => (
-                    <div key={e} style={{ color: 'var(--danger)' }}>
-                      {e}
+                    <div key={e} className="text-danger">
+                      Error: {e}
                     </div>
                   ))}
                   {l.warnings.map((w: string) => (
@@ -313,7 +313,7 @@ function Centers() {
               </option>
             ))}
           </select>
-          <input required placeholder="Nombre del departamento" value={dept.name} onChange={(e) => setDept({ ...dept, name: e.target.value })} style={{ flex: 1 }} />
+          <input required aria-label="Nombre del departamento" placeholder="Nombre del departamento" value={dept.name} onChange={(e) => setDept({ ...dept, name: e.target.value })} style={{ flex: 1 }} />
           <button className="btn btn-primary" disabled={action.busy}>
             Añadir
           </button>

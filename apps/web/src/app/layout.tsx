@@ -5,6 +5,10 @@ import './globals.css';
 export const metadata: Metadata = {
   title: { default: 'OpenHR', template: '%s · OpenHR' },
   description: 'Gestión de personas open source y autoalojable',
+  // Instalable como aplicación (PWA) para fichar desde el móvil.
+  manifest: '/manifest.webmanifest',
+  icons: { icon: '/icon.svg', apple: '/icon.svg' },
+  appleWebApp: { capable: true, title: 'OpenHR', statusBarStyle: 'black-translucent' },
 };
 
 export const viewport: Viewport = {

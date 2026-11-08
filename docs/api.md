@@ -117,6 +117,6 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `GET /exports/time-register?employmentId=&from=&to=` | E / H | CSV del registro de una persona |
 | `GET /exports/payroll-variables?companyId=&period=` | H | CSV de variables de nómina del mes |
 | `GET /imports/employees/template` | S | Plantilla CSV |
-| `POST /imports/employees?dryRun=true\|false` | H | Multipart `file`. Valida todo; con errores no escribe nada |
+| `POST /imports/employees?dryRun=true\|false` | H | Multipart `file`: CSV (`;` o `,`) o Excel `.xlsx` (primera hoja, primera fila de cabeceras). Valida todo; con errores no escribe nada |
 
 Los CSV usan `;`, BOM UTF-8 y CRLF (se abren bien en Excel en español), neutralizan fórmulas y llevan la cabecera `X-Content-SHA256`. Cada exportación queda en la auditoría con su huella.

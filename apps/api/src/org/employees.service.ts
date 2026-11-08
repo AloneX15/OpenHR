@@ -158,10 +158,13 @@ export class EmployeesService {
       : null;
     if (!person && input.email) {
       // Sin DNI coincidente, una persona con el mismo email también es la misma persona.
+      // Solo si el DNI/NIE no lo contradice: dos DNI distintos son dos personas distintas.
       person = await tx.maybeOne(
         `SELECT p.id, p.email FROM person p LEFT JOIN app_user u ON u.person_id = p.id
-          WHERE lower(p.email) = lower($1) OR lower(u.email) = lower($1) LIMIT 1`,
-        [input.email],
+          WHERE (lower(p.email) = lower($1) OR lower(u.email) = lower($1))
+            AND (p.national_id IS NULL OR $2::text IS NULL OR p.national_id = $2)
+          LIMIT 1`,
+        [input.email, input.nationalId ?? null],
       );
       if (person && input.nationalId) {
         await tx.query('UPDATE person SET national_id = coalesce(national_id, $2) WHERE id = $1', [person.id, input.nationalId]);
@@ -174,14 +177,12 @@ export class EmployeesService {
         [tx.tenantId, input.firstName, input.lastName, input.nationalId ?? null, input.email ?? null, input.phone ?? null],
       );
     }
-    {
-      const overlap = await tx.maybeOne(
-        `SELECT id FROM employment WHERE person_id = $1 AND company_id = $2
-            AND (end_date IS NULL OR end_date >= $3::date)`,
-        [person.id, input.companyId, input.startDate],
-      );
-      if (overlap) throw new ConflictException('Esta persona ya tiene una relación laboral vigente en esa sociedad');
-    }
+    const overlap = await tx.maybeOne(
+      `SELECT id FROM employment WHERE person_id = $1 AND company_id = $2
+          AND (end_date IS NULL OR end_date >= $3::date)`,
+      [person.id, input.companyId, input.startDate],
+    );
+    if (overlap) throw new ConflictException('Esta persona ya tiene una relación laboral vigente en esa sociedad');
 
     const weekly = input.weeklyMinutes ?? 2400;
     const employment = await tx.one(
