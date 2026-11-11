@@ -5,9 +5,24 @@ import { api } from '@/lib/api';
 import { addDays, todayIso } from '@/lib/format';
 import { ErrorBox, Field, Modal, useAction, useLoad } from './ui';
 
-export function RequestModal({ employmentId, onClose, onDone, title = 'Solicitar ausencia' }: { employmentId: string; onClose: () => void; onDone: () => void; title?: string }) {
+export function RequestModal({
+  employmentId,
+  onClose,
+  onDone,
+  title = 'Solicitar ausencia',
+  initialDate,
+}: {
+  employmentId: string;
+  onClose: () => void;
+  /** Recibe el mensaje de confirmación para mostrarlo en la página. */
+  onDone: (message?: string) => void;
+  title?: string;
+  /** Fecha con la que se abre el formulario (por defecto, mañana). */
+  initialDate?: string;
+}) {
   const types = useLoad(() => api.get<any[]>('/org/absence-types'));
-  const [f, setF] = useState({ absenceTypeId: '', startDate: addDays(todayIso(), 1), endDate: addDays(todayIso(), 1), comment: '' });
+  const first = initialDate ?? addDays(todayIso(), 1);
+  const [f, setF] = useState({ absenceTypeId: '', startDate: first, endDate: first, comment: '' });
   const { busy, error, run } = useAction();
   const active = types.data?.filter((t) => t.active) ?? [];
   const typeId = f.absenceTypeId || active[0]?.id || '';
@@ -17,8 +32,7 @@ export function RequestModal({ employmentId, onClose, onDone, title = 'Solicitar
     e.preventDefault();
     void run(async () => {
       const r = await api.post('/absences', { ...f, absenceTypeId: typeId, employmentId, comment: f.comment || undefined });
-      alert(r.status === 'approved' ? `Registrada (${r.days} día/s).` : `Solicitud enviada (${r.days} día/s). Te avisaremos cuando se resuelva.`);
-      onDone();
+      onDone(r.status === 'approved' ? `Ausencia registrada (${r.days} día/s).` : `Solicitud enviada (${r.days} día/s). Te avisaremos cuando se resuelva.`);
       onClose();
     });
   };

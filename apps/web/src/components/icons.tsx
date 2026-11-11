@@ -38,6 +38,20 @@ import { TimerIcon } from '@animateicons/react/lucide/timer-icon';
 import { UploadIcon } from '@animateicons/react/lucide/upload-icon';
 import { UsersIcon } from '@animateicons/react/lucide/users-icon';
 import { XIcon } from '@animateicons/react/lucide/x-icon';
+import { ChevronDownIcon } from '@animateicons/react/lucide/chevron-down-icon';
+import { ChevronLeftIcon } from '@animateicons/react/lucide/chevron-left-icon';
+import { ChevronRightIcon } from '@animateicons/react/lucide/chevron-right-icon';
+import { EllipsisIcon } from '@animateicons/react/lucide/ellipsis-icon';
+import { PauseIcon } from '@animateicons/react/lucide/pause-icon';
+import { PlayIcon } from '@animateicons/react/lucide/play-icon';
+import { CoffeeIcon } from '@animateicons/react/lucide/coffee-icon';
+import { PartyPopperIcon } from '@animateicons/react/lucide/party-popper-icon';
+import { InboxIcon } from '@animateicons/react/lucide/inbox-icon';
+import { InfoIcon } from '@animateicons/react/lucide/info-icon';
+import { MapPinIcon } from '@animateicons/react/lucide/map-pin-icon';
+import { UserIcon } from '@animateicons/react/lucide/user-icon';
+import { LayoutGridIcon } from '@animateicons/react/lucide/layout-grid-icon';
+import { CalendarPlusIcon } from '@animateicons/react/lucide/calendar-plus-icon';
 import { ComponentType, ReactNode, RefAttributes, useRef } from 'react';
 
 type AnyIcon = ComponentType<{ size?: number; className?: string; isAnimated?: boolean; 'aria-hidden'?: boolean } & RefAttributes<IconHandle>>;
@@ -75,6 +89,20 @@ export const Icons = {
   security: ShieldCheckIcon,
   privacy: LockIcon,
   whistleblowing: ShieldUserIcon,
+  chevronDown: ChevronDownIcon,
+  chevronLeft: ChevronLeftIcon,
+  chevronRight: ChevronRightIcon,
+  more: EllipsisIcon,
+  pause: PauseIcon,
+  play: PlayIcon,
+  coffee: CoffeeIcon,
+  party: PartyPopperIcon,
+  inbox: InboxIcon,
+  info: InfoIcon,
+  pin: MapPinIcon,
+  user: UserIcon,
+  grid: LayoutGridIcon,
+  calendarPlus: CalendarPlusIcon,
 } satisfies Record<string, AnyIcon>;
 
 export type IconName = keyof typeof Icons;

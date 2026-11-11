@@ -1,8 +1,11 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { FormEvent, Suspense, useState } from 'react';
-import { Badge, Card, Empty, ErrorBox, Field, Modal, PageHeader, Tabs, useAction, useLoad } from '@/components/ui';
+import { Suspense, useState } from 'react';
+import { Badge, Card, Collapse, Empty, EmptyState, ErrorBox, Notice, PageHeader, Select, Stepper, Tabs, useAction, useLoad } from '@/components/ui';
+import { absenceTone, EventRow } from '@/components/Events';
+import { IconButton } from '@/components/icons';
+import { BalanceBar, YearCalendar } from '@/components/YearCalendar';
 import { api } from '@/lib/api';
 import { addDays, dayLabel, monthBounds, STATUS_LABEL, todayIso } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -33,115 +36,172 @@ function AbsencesContent() {
   );
 }
 
+function rangeLabel(r: { start_date: string; end_date: string; days: string | number }) {
+  const span = r.end_date === r.start_date ? dayLabel(r.start_date) : `${dayLabel(r.start_date)} → ${dayLabel(r.end_date)}`;
+  return `${span} · ${Number(r.days)} día(s)`;
+}
+
 function MyAbsences() {
   const { me } = useSession();
-  const year = Number(todayIso().slice(0, 4));
+  const today = todayIso();
+  const thisYear = Number(today.slice(0, 4));
+  const [year, setYear] = useState(thisYear);
   const [employmentId, setEmploymentId] = useState(me.employments[0]?.id ?? '');
   const mine = useLoad(() => api.get<any[]>('/absences/mine'));
-  const balance = useLoad(() => (employmentId ? api.get(`/absences/balance/${employmentId}?year=${year}`) : Promise.resolve(null)), [employmentId]);
-  const [creating, setCreating] = useState(false);
+  const balance = useLoad(() => (employmentId ? api.get(`/absences/balance/${employmentId}?year=${year}`) : Promise.resolve(null)), [employmentId, year]);
+  const holidays = useLoad(() => api.get<any[]>(`/org/holidays?year=${year}`).catch(() => []), [year]);
+  // Fecha con la que se abre la solicitud (null = cerrada).
+  const [creating, setCreating] = useState<string | null>(null);
+  const [sent, setSent] = useState<string | null>(null);
+  const [showPast, setShowPast] = useState(false);
   const action = useAction();
 
-  if (!me.employments.length) return <Empty>No tienes ninguna relación laboral activa.</Empty>;
+  if (!me.employments.length) return <EmptyState icon="vacation" title="Sin relación laboral activa">Cuando RR. HH. te dé de alta en una sociedad podrás pedir ausencias aquí.</EmptyState>;
   const reloadAll = () => Promise.all([mine.reload(), balance.reload()]);
+  const companyId = me.employments.find((e) => e.id === employmentId)?.company_id;
+  const myHolidays = (holidays.data ?? []).filter((h) => !h.company_id || h.company_id === companyId);
+  const all = mine.data ?? [];
+  const live = (r: any) => r.status === 'approved' || r.status === 'pending';
+  const upcoming = all.filter((r) => r.end_date >= today && live(r)).sort((a, b) => a.start_date.localeCompare(b.start_date));
+  const past = all.filter((r) => !(r.end_date >= today && live(r)));
+  const types = Array.from(new Set(all.filter((r) => live(r) && r.start_date.slice(0, 4) <= String(year) && r.end_date.slice(0, 4) >= String(year)).map((r) => r.type_name as string)));
+  const b = balance.data;
+
+  const row = (r: any) => (
+    <EventRow
+      key={r.id}
+      date={r.start_date}
+      tone={absenceTone(r.type_name)}
+      pending={r.status === 'pending'}
+      title={r.type_name}
+      detail={
+        <>
+          {rangeLabel(r)}
+          {me.employments.length > 1 && ` · ${r.company_name}`}
+          {r.decision_comment && ` · «${r.decision_comment}»`}
+          {r.status === 'pending' && <ApprovalSteps steps={r.steps} />}
+        </>
+      }
+      action={
+        <>
+          <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
+          {(r.status === 'pending' || (r.status === 'approved' && r.start_date > today)) && (
+            <button className="btn btn-sm btn-danger" disabled={action.busy} onClick={() => confirm('¿Anular esta solicitud?') && action.run(async () => (await api.post(`/absences/${r.id}/cancel`), reloadAll()))}>
+              Anular
+            </button>
+          )}
+        </>
+      }
+    />
+  );
 
   return (
     <div className="stack">
-      <div className="grid grid-2">
-        <Card title={`Vacaciones ${year}`}>
-          {balance.data && (
-            <>
-              <div className="grid grid-3">
-                <div className="stat">
-                  <span className="stat-value">{balance.data.available}</span>
-                  <span className="stat-label">disponibles</span>
+      <div className="spread">
+        {me.employments.length > 1 ? (
+          <Select label="Sociedad" icon="organization" value={employmentId} onChange={setEmploymentId} options={me.employments.map((e) => ({ value: e.id, label: e.company_name, hint: e.job_title ?? undefined }))} />
+        ) : (
+          <span className="muted">Pulsa un día del calendario para pedirlo, o usa el botón.</span>
+        )}
+        <IconButton icon="plus" className="btn btn-primary" onClick={() => setCreating(addDays(today, 1))}>
+          Solicitar ausencia
+        </IconButton>
+      </div>
+      {sent && <Notice tone="success">{sent}</Notice>}
+      <ErrorBox error={mine.error || action.error} />
+
+      <div className="split split-aside-first">
+        <div className="stack">
+          <Card title={`Vacaciones ${year}`}>
+            {b ? (
+              <>
+                <div className="stat-row" style={{ marginBottom: 12 }}>
+                  <div className="stat">
+                    <span className="stat-value">{b.available}</span>
+                    <span className="stat-label">disponibles</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">{b.approved}</span>
+                    <span className="stat-label">aprobadas</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">{b.pending}</span>
+                    <span className="stat-label">pendientes</span>
+                  </div>
                 </div>
-                <div className="stat">
-                  <span className="stat-value">{balance.data.approved}</span>
-                  <span className="stat-label">aprobadas</span>
-                </div>
-                <div className="stat">
-                  <span className="stat-value">{balance.data.pending}</span>
-                  <span className="stat-label">pendientes</span>
-                </div>
-              </div>
-              <p className="muted small" style={{ marginTop: 10 }}>
-                Te corresponden {balance.data.entitled} días laborables este año
-                {balance.data.adjustments ? `, más ${balance.data.adjustments} de ajustes` : ''}.
-              </p>
-            </>
-          )}
-        </Card>
-        <Card title="Nueva solicitud">
-          <p className="muted">Pide vacaciones, un permiso o comunica una baja. Tu responsable recibirá un aviso.</p>
-          <div className="row">
-            {me.employments.length > 1 && (
-              <select value={employmentId} onChange={(e) => setEmploymentId(e.target.value)} style={{ width: 'auto' }}>
-                {me.employments.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.company_name}
-                  </option>
-                ))}
-              </select>
+                <BalanceBar used={Number(b.approved)} held={Number(b.pending)} available={Number(b.available)} />
+                <p className="muted small" style={{ margin: '10px 0 0' }}>
+                  Te corresponden {b.entitled} días laborables en {year}
+                  {Number(b.adjustments) ? `, más ${b.adjustments} de ajustes` : ''}.
+                </p>
+              </>
+            ) : (
+              <p className="muted">Cargando…</p>
             )}
-            <button className="btn btn-primary" onClick={() => setCreating(true)}>
-              Solicitar ausencia
-            </button>
+          </Card>
+
+          <Card title="Próximas ausencias">
+            {upcoming.length ? (
+              <div className="stack" style={{ gap: 8 }}>
+                {upcoming.map(row)}
+              </div>
+            ) : (
+              <EmptyState icon="calendarPlus" title="Nada previsto">
+                Todavía no tienes ausencias por delante.
+              </EmptyState>
+            )}
+          </Card>
+
+          {past.length > 0 && (
+            <Card
+              title="Anteriores"
+              actions={
+                past.length > 3 && (
+                  <button className="btn btn-ghost btn-sm" aria-expanded={showPast} onClick={() => setShowPast(!showPast)}>
+                    {showPast ? 'Ver menos' : `Ver ${past.length - 3} más`}
+                  </button>
+                )
+              }
+            >
+              <div className="stack" style={{ gap: 8 }}>
+                {past.slice(0, 3).map(row)}
+              </div>
+              <Collapse open={showPast}>
+                <div className="stack" style={{ gap: 8, paddingTop: 8 }}>
+                  {past.slice(3).map(row)}
+                </div>
+              </Collapse>
+            </Card>
+          )}
+        </div>
+
+        <Card title="Mi año" actions={<Stepper label={year} onPrev={() => setYear(year - 1)} onNext={() => setYear(year + 1)} prevLabel="Año anterior" nextLabel="Año siguiente" />}>
+          <div className="legend" style={{ marginBottom: 18 }}>
+            {types.map((t) => (
+              <span key={t} className={`badge badge-dot tone-${absenceTone(t)}`}>
+                {t}
+              </span>
+            ))}
+            <span className="badge badge-dot tone-rose" style={{ ['--c' as any]: 'var(--danger)' }}>
+              Festivo
+            </span>
+            <span className="badge">Con borde: pendiente de aprobar</span>
           </div>
+          <YearCalendar year={year} absences={all} holidays={myHolidays} onPickDay={(d) => setCreating(d)} />
         </Card>
       </div>
-      <Card title="Mis solicitudes">
-        <ErrorBox error={mine.error || action.error} />
-        {mine.data?.length ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Fechas</th>
-                  <th className="num">Días</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {mine.data.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      {r.type_name}
-                      {me.employments.length > 1 && <div className="small muted">{r.company_name}</div>}
-                    </td>
-                    <td>
-                      {dayLabel(r.start_date)}
-                      {r.end_date !== r.start_date && <> → {dayLabel(r.end_date)}</>}
-                    </td>
-                    <td className="num">{Number(r.days)}</td>
-                    <td>
-                      <Badge tone={STATUS_TONE[r.status]}>{STATUS_LABEL[r.status]}</Badge>
-                      <ApprovalSteps steps={r.steps} />
-                      {r.decision_comment && <div className="small muted">«{r.decision_comment}»</div>}
-                    </td>
-                    <td className="num">
-                      {(r.status === 'pending' || (r.status === 'approved' && r.start_date > todayIso())) && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          disabled={action.busy}
-                          onClick={() => confirm('¿Anular esta solicitud?') && action.run(async () => (await api.post(`/absences/${r.id}/cancel`), reloadAll()))}
-                        >
-                          Anular
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <Empty>Todavía no has pedido ninguna ausencia.</Empty>
-        )}
-      </Card>
-      {creating && <RequestModal employmentId={employmentId} onClose={() => setCreating(false)} onDone={reloadAll} />}
+
+      {creating && (
+        <RequestModal
+          employmentId={employmentId}
+          initialDate={creating}
+          onClose={() => setCreating(null)}
+          onDone={(message) => {
+            setSent(message ?? null);
+            void reloadAll();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -214,7 +274,7 @@ function TeamCalendar() {
   const { from, to } = monthBounds(period);
   const { data, error } = useLoad(() => api.get<any[]>(`/absences/team?from=${from}&to=${to}`), [from, to]);
   return (
-    <Card title="Ausencias del equipo" actions={<input type="month" value={period} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ width: 'auto' }} />}>
+    <Card title="Ausencias del equipo" actions={<input type="month" aria-label="Mes" value={period} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ width: 'auto' }} />}>
       <ErrorBox error={error} />
       {data?.length ? (
         <div className="table-wrap">

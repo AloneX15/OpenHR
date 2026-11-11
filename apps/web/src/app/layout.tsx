@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { headers } from 'next/headers';
+import { MotionRoot } from '@/components/MotionRoot';
 import { ServiceWorker } from '@/components/ServiceWorker';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 import './globals.css';
@@ -35,6 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         {children}
         <ServiceWorker />
+        <MotionRoot />
       </body>
     </html>
   );

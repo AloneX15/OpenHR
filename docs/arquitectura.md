@@ -16,7 +16,7 @@ flowchart LR
 
 | Pieza | Tecnología | Responsabilidad |
 | --- | --- | --- |
-| `apps/web` | Next.js 16 (App Router), React 19, CSS propio, AnimateIcons | Interfaz. Páginas cliente que llaman a la API. Un route handler (`src/app/api/[...path]/route.ts`) reenvía `/api/*` a `API_URL`: mismo origen y cookie sin CORS |
+| `apps/web` | Next.js 16 (App Router), React 19, CSS propio, AnimateIcons, GSAP | Interfaz. Páginas cliente que llaman a la API. Un route handler (`src/app/api/[...path]/route.ts`) reenvía `/api/*` a `API_URL`: mismo origen y cookie sin CORS |
 | `apps/api` | NestJS 11, `pg`, zod, pdf-lib, pdfjs-dist, nodemailer | Reglas de negocio, permisos, PDFs, exportaciones, outbox de emails |
 | `db` | PostgreSQL 17 | Datos, aislamiento por RLS, inmutabilidad de fichajes |
 | `migrate` | La imagen de la API con `node dist/db/migrate.js` | Crea el rol de aplicación y aplica migraciones con el rol propietario |
