@@ -29,9 +29,10 @@ flowchart LR
 src/
   auth/           sesión (JWT), login, MFA TOTP, invitaciones, recuperación, configuración inicial, AuthGuard global
   org/            sociedades, centros, departamentos, festivos, tipos de ausencia, personas y roles
-  time/           fichaje, correcciones, resumen diario (worktime.ts), cadena de hashes, sellos
+  time/           fichaje, correcciones, resumen diario (worktime.ts), cadena de hashes, sellos,
+                  sellado automático (seal.scheduler.ts) y sello de tiempo RFC 3161 (tsa.ts)
   absences/       solicitudes, aprobación, saldo de vacaciones
-  documents/      almacenamiento, documentos, lotes de nóminas y PDF (pdf.ts)
+  documents/      almacenamiento, documentos, lotes de nóminas y PDF (pdf.ts), antivirus opcional (antivirus.ts)
   exports/        CSV de registro de jornada y variables de nómina
   imports/        importación CSV de personas
   notifications/  bandeja, outbox y su procesador (OutboxWorker)
@@ -41,6 +42,8 @@ src/
 ```
 
 ## Flujo de una petición
+
+Antes, al pedir una página, `apps/web/src/proxy.ts` genera un nonce y la cabecera `Content-Security-Policy` de esa petición; por eso las páginas se renderizan en cada petición.
 
 1. El navegador llama a `/api/...` en la web; el route handler la reenvía a la API con cookies y cuerpo, sin las cabeceras de IP que el cliente podría falsear.
 2. Un middleware rechaza peticiones de escritura con un `Origin` distinto de `PUBLIC_URL`.
@@ -56,6 +59,7 @@ src/
 - **Aislamiento por RLS**: [ADR 0001](adr/0001-tenancy-rls.md).
 - **Fichaje inmutable con cadena de hashes**: [ADR 0002](adr/0002-time-entry-hash-chain.md).
 - **Sesiones revocables con JWT**: [ADR 0003](adr/0003-sesiones.md).
-- **Outbox transaccional en PostgreSQL** en vez de una cola externa: menos piezas que autoalojar. El procesador corre dentro de la API (`OUTBOX_WORKER=false` lo desactiva si hay varias réplicas y se quiere uno dedicado).
+- **Outbox transaccional en PostgreSQL** en vez de una cola externa: menos piezas que autoalojar. El procesador corre dentro de la API (`OUTBOX_WORKER=false` lo desactiva si hay varias réplicas y se quiere uno dedicado). El mismo interruptor gobierna los demás procesos automáticos: conservación diaria y sellado mensual.
+- **Varias réplicas de la API**: no guardan estado propio. Los límites de intentos se cuentan en PostgreSQL y el outbox y los sellos automáticos están protegidos contra el trabajo duplicado.
 - **Zona horaria por centro de trabajo**: cada fichaje cuenta en el día civil de su centro; los tramos que cruzan medianoche se reparten y los cambios de hora se calculan con `Intl`.
 - **Nóminas**: OpenHR no calcula nóminas. Recibe el PDF de la gestoría y le entrega las variables del mes.

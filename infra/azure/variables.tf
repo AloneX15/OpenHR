@@ -127,3 +127,22 @@ variable "vapid_subject" {
   type    = string
   default = "mailto:admin@example.com"
 }
+
+# Sello de tiempo RFC 3161 para los sellos del registro de jornada (opcional),
+# por ejemplo https://freetsa.org/tsr o la TSA de tu prestador cualificado.
+variable "tsa_url" {
+  type    = string
+  default = ""
+}
+
+# Antivirus (opcional): host y puerto de un clamd accesible desde la API. Este módulo no
+# despliega ClamAV; con el host vacío los ficheros subidos no se analizan.
+variable "clamav_host" {
+  type    = string
+  default = ""
+}
+
+variable "clamav_port" {
+  type    = number
+  default = 3310
+}

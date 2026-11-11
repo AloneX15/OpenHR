@@ -93,19 +93,31 @@ export default function ReportsPage() {
         >
           <p className="muted">
             Un sello es una huella de todos los fichajes hasta ese momento que se envía por email a RR. HH. Si alguien manipulara la base de datos, la
-            huella dejaría de coincidir. Recomendado: sellar al cerrar cada mes.
+            huella dejaría de coincidir. Al empezar cada mes se sella automáticamente el mes anterior; además puedes sellar cuando quieras.
           </p>
           {sealed && (
             <Notice tone="success">
-              Sello enviado. Huella: <span className="mono">{sealed.digest}</span>
+              Sello enviado{sealed.timestamped ? ', con sello de tiempo' : ''}. Huella: <span className="mono">{sealed.digest}</span>
             </Notice>
           )}
           {seals.data?.length ? (
             <ul className="list small">
               {seals.data.map((s) => (
                 <li key={s.id}>
-                  {dateTime(s.sealed_at)} · <span className="mono">{s.digest.slice(0, 24)}…</span>
+                  {dateTime(s.sealed_at)} · <span className="mono">{s.digest.slice(0, 24)}…</span>{' '}
+                  {s.automatic && <span className="badge badge-info">Automático · {s.period}</span>}{' '}
+                  {s.timestamped && <span className="badge badge-success">Sello de tiempo</span>}
                   <div className="muted">Enviado a {s.sent_to?.join(', ') || 'nadie'}</div>
+                  {s.timestamped && (
+                    <button
+                      className="btn btn-sm"
+                      disabled={action.busy}
+                      title={`Respuesta RFC 3161 de ${s.tsa_url}, para verificarla con la huella`}
+                      onClick={() => action.run(() => download(`/time/seals/${s.id}/timestamp`))}
+                    >
+                      Descargar sello de tiempo (.tsr)
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

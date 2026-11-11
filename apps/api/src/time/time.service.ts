@@ -1,12 +1,14 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Actor, assertEmploymentAccess, assertHr, audit, hrCompanyFilter } from '../common/access';
 import { expectedMinutes, loadCalendars } from '../common/calendar';
 import { canonicalJson, sha256 } from '../common/crypto';
 import { localDate, zonedToUtc } from '../common/dates';
+import { config } from '../config';
 import { Tx } from '../db/db.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { insideZone } from '../common/geo';
 import { ENTRY_COLUMNS, entriesBetween } from './entries';
+import { requestTimestamp } from './tsa';
 import {
   chainHash,
   contentDigest,
@@ -23,6 +25,8 @@ import {
 
 @Injectable()
 export class TimeService {
+  private readonly log = new Logger('Fichajes');
+
   constructor(private readonly notifications: NotificationsService) {}
 
   /** Inserta un evento en la cadena de la relación laboral (bloquea la fila de employment). */
@@ -370,6 +374,16 @@ export class TimeService {
    */
   async seal(tx: Tx, actor: Actor, companyId: string) {
     assertHr(actor, companyId);
+    return this.sealCompany(tx, companyId);
+  }
+
+  /**
+   * Crea el sello sin comprobar permisos: lo usan `seal` (ya comprobados) y el sellado
+   * automático, que pasa en `period` el mes cerrado. Si hay TSA configurada, la huella
+   * lleva además un sello de tiempo RFC 3161; si la TSA falla, se sella igualmente sin él.
+   * Devuelve null si otro proceso ya hizo el sello automático de ese mes.
+   */
+  async sealCompany(tx: Tx, companyId: string, period: string | null = null) {
     const rows = await tx.query(
       `SELECT id, time_chain_seq, time_chain_head FROM employment WHERE company_id = $1 AND time_chain_seq > 0 ORDER BY id`,
       [companyId],
@@ -382,20 +396,58 @@ export class TimeService {
         WHERE u.is_active AND (r.role = 'admin' OR (r.role = 'hr' AND (r.company_id IS NULL OR r.company_id = $1)))`,
       [companyId],
     );
-    const seal = await tx.one(
-      `INSERT INTO time_chain_seal (tenant_id, company_id, heads, digest, sent_to) VALUES ($1,$2,$3,$4,$5) RETURNING id, sealed_at, digest`,
-      [tx.tenantId, companyId, JSON.stringify(heads), digest, recipients.map((r) => r.email)],
+    let tsaResponse: Buffer | null = null;
+    if (config.tsa.url) {
+      try {
+        tsaResponse = await requestTimestamp(config.tsa.url, digest);
+      } catch (err) {
+        this.log.warn(`Sello de tiempo no disponible (${config.tsa.url}): ${(err as Error).message}`);
+      }
+    }
+    const seal = await tx.maybeOne(
+      `INSERT INTO time_chain_seal (tenant_id, company_id, heads, digest, sent_to, automatic, period, tsa_response, tsa_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT (company_id, period) WHERE automatic DO NOTHING
+       RETURNING id, sealed_at, digest, automatic, period`,
+      [tx.tenantId, companyId, JSON.stringify(heads), digest, recipients.map((r) => r.email), period !== null, period, tsaResponse, tsaResponse ? config.tsa.url : null],
     );
+    if (!seal) return null;
+    const what = period ? `Sello automático del mes ${period}` : 'Sello';
+    const stamped = tsaResponse
+      ? `\nSello de tiempo RFC 3161: emitido por ${config.tsa.url}. Se descarga desde Informes para verificarlo con la huella.`
+      : '';
     for (const r of recipients) {
       await this.notifications.queueEmail(
         tx,
         r.email,
         `Sello del registro de jornada · ${company.name}`,
-        `Sello del registro de jornada de ${company.name} (${company.tax_id}).\n\nFecha: ${new Date(seal.sealed_at).toISOString()}\nRelaciones laborales: ${rows.length}\nHuella SHA-256: ${digest}\n\nConserva este correo: permite comprobar más adelante que los fichajes anteriores a esta fecha no se han modificado.`,
+        `${what} del registro de jornada de ${company.name} (${company.tax_id}).\n\nFecha: ${new Date(seal.sealed_at).toISOString()}\nRelaciones laborales: ${rows.length}\nHuella SHA-256: ${digest}${stamped}\n\nConserva este correo: permite comprobar más adelante que los fichajes anteriores a esta fecha no se han modificado.`,
       );
     }
-    await audit(tx, 'time.sealed', 'company', companyId, { digest });
-    return { ...seal, employments: rows.length };
+    await audit(tx, 'time.sealed', 'company', companyId, { digest, automatic: period !== null, period, timestamped: Boolean(tsaResponse) });
+    return { ...seal, employments: rows.length, timestamped: Boolean(tsaResponse) };
+  }
+
+  /** Sellos de una sociedad, del más reciente al más antiguo. */
+  async seals(tx: Tx, actor: Actor, companyId: string) {
+    assertHr(actor, companyId);
+    return tx.query(
+      `SELECT id, sealed_at, digest, sent_to, automatic, period, tsa_response IS NOT NULL AS timestamped, tsa_url
+         FROM time_chain_seal WHERE company_id = $1 ORDER BY sealed_at DESC LIMIT 50`,
+      [companyId],
+    );
+  }
+
+  /** Respuesta de la TSA de un sello (fichero .tsr), para verificarla fuera de OpenHR. */
+  async sealTimestamp(tx: Tx, actor: Actor, sealId: string) {
+    const s = await tx.maybeOne<{ company_id: string; digest: string; tsa_response: Buffer | null }>(
+      'SELECT company_id, digest, tsa_response FROM time_chain_seal WHERE id = $1',
+      [sealId],
+    );
+    if (!s) throw new NotFoundException('Sello no encontrado');
+    assertHr(actor, s.company_id);
+    if (!s.tsa_response) throw new NotFoundException('Este sello no tiene sello de tiempo');
+    return { digest: s.digest, data: s.tsa_response };
   }
 }
 

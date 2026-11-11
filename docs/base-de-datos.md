@@ -192,7 +192,7 @@ Protecciones: el rol `openhr_app` no tiene `UPDATE` ni `DELETE`, y los triggers 
 Columnas añadidas en la migración 015: `channel` (`web`, `kiosk`, `offline`, `import`), `kiosk_device_id`, `latitude`, `longitude`, `accuracy_m` e `inside_zone`. Cuando tienen valor entran en la huella del eslabón. `source` admite además `offline` (fichaje hecho sin conexión y enviado después). En `work_center`: `latitude`, `longitude`, `radius_m` y `geo_policy` (`off`, `record`, `require`); en `employment`: `remote_allowed`, `kiosk_code` y `kiosk_pin_hash` (bcrypt). Tabla `kiosk_device`: centro, nombre y hash del token del dispositivo.
 
 #### `time_chain_seal` — sellos (append-only)
-`company_id`, `sealed_at`, `heads` (jsonb `{employment_id: {seq, hash}}`), `digest` (SHA-256), `sent_to` (emails).
+`company_id`, `sealed_at`, `heads` (jsonb `{employment_id: {seq, hash}}`), `digest` (SHA-256), `sent_to` (emails). Los sellos automáticos llevan `automatic` y `period` (el mes cerrado, `AAAA-MM`; uno por sociedad y mes). Con TSA configurada, `tsa_response` guarda la respuesta RFC 3161 sobre `digest` y `tsa_url` quién la emitió.
 
 ### Turnos y bolsa de horas
 
@@ -323,6 +323,8 @@ Solicitudes de derechos del RGPD: `kind` (`access`, `rectification`, `erasure`, 
 #### `retention_setting`, `retention_run` y `time_chain_checkpoint`
 Plazos de conservación en días por categoría (`time_entries` ≥ 1461, `former_employees` ≥ 1461, `audit`, `notifications`, `outbox`) y registro de cada ejecución. Al purgar fichajes se guarda por relación laboral el último eslabón purgado (`seq`, `hash`) para que la cadena siga verificándose. `person.anonymized_at` marca a quien se ha anonimizado.
 
+El plazo de `audit` no puede bajar de 365 días; su purga solo la hace `retention_purge_audit(tenant, antes_de)`, que exige el tenant de la sesión y una fecha de al menos 1 año atrás.
+
 La purga de fichajes solo puede hacerla la función `retention_purge_time_entries(tenant, antes_de)` (`SECURITY DEFINER`): exige el tenant de la sesión y una fecha de al menos 4 años atrás, y el trigger de inmutabilidad solo admite el borrado durante esa función.
 
 #### `wb_report` y `wb_message`
@@ -349,6 +351,9 @@ Canal de Slack o Teams: `provider`, `label`, `company_id` (NULL = todas), `url_e
 #### `outbox`
 Cola transaccional de emails: `type`, `payload`, `attempts`, `last_error`, `available_at`, `processed_at`. Al enviarse, el cuerpo se borra y solo quedan destinatario y asunto.
 
+#### `rate_limit_hit`
+Intentos recientes de inicio de sesión, MFA, PIN de kiosco y canal de denuncias: `key` (huella SHA-256 del ámbito y la clave, sin emails ni IPs) y `hit_at`. No tiene `tenant_id` (los intentos llegan antes de saber la organización) y el rol de aplicación no tiene ningún permiso sobre ella: solo la usa con `rate_limit_try`, `rate_limit_reset` y `rate_limit_cleanup`.
+
 #### `schema_migrations`
 `name`, `checksum`, `applied_at`. Una migración aplicada no puede cambiar (el checksum lo detecta).
 
@@ -367,6 +372,10 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `oidc_provider_by_domain(domain)` | Proveedor OpenID Connect activo para el dominio de un email, antes de iniciar sesión |
 | `kiosk_by_token_hash(hash)` | Organización y kiosco de un token de dispositivo activo |
 | `scim_token_lookup(hash)` | Organización de un token de SCIM no revocado, antes de tener contexto de tenant |
+| `rate_limit_try(key, max, ventana_s)` | Apunta un intento si cabe en la ventana; `false` si se ha superado el máximo. Compartido entre réplicas |
+| `rate_limit_reset(key)`, `rate_limit_cleanup()` | Borrar los intentos de una clave (acceso correcto) y la limpieza diaria |
+| `system_tenant_ids()` | Organizaciones de la instalación, para el sellado automático y la conservación |
+| `retention_purge_time_entries(tenant, antes_de)`, `retention_purge_audit(tenant, antes_de)` | Purgas por conservación de tablas append-only, con sus mínimos legales |
 
 ## Migraciones
 
@@ -393,9 +402,10 @@ Son las únicas puertas que cruzan organizaciones. Todas tienen `search_path` fi
 | `019_scim.sql` | Tokens de SCIM, `app_user.scim_external_id` y `updated_at`, y `scim_token_lookup()` |
 | `020_surveys.sql` | Encuestas, preguntas, participación y respuestas (anónimas o con nombre) |
 | `021_tickets.sql` | Consultas a RR. HH.: temas (con los de partida), consultas y mensajes |
+| `022_v1_hardening.sql` | Límites de intentos en base de datos, sellos automáticos con sello de tiempo RFC 3161 y purga del registro de auditoría |
 
 Para añadir una tabla: crea `00N_nombre.sql`, incluye `tenant_id uuid NOT NULL REFERENCES tenant(id)` y llama a `SELECT enable_tenant_rls('nombre')`. Nunca edites una migración ya aplicada.
 
-## Retención (pendiente para la V1)
+## Retención
 
-El registro de jornada se conserva 4 años. La purga por periodos sellados y la anonimización se describen en [ADR 0002](adr/0002-time-entry-hash-chain.md).
+El registro de jornada se conserva 4 años. La purga con punto de control y la anonimización (migración 012) se describen en [ADR 0002](adr/0002-time-entry-hash-chain.md); la del registro de auditoría llegó en la migración 022.

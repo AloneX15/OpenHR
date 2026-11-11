@@ -8,10 +8,16 @@ import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { Client } from 'pg';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createServer, Server as HttpServer } from 'node:http';
+import { AddressInfo, createServer as createTcpServer, Server as TcpServer } from 'node:net';
 import { AppModule } from '../src/app.module';
+import { RateLimiter } from '../src/auth/rate-limit';
 import { signPasswordToken } from '../src/auth/session';
+import { config } from '../src/config';
+import { Db } from '../src/db/db.service';
 import { runMigrations } from '../src/db/migrate';
 import { configureApp } from '../src/main';
+import { previousPeriod, SealScheduler } from '../src/time/seal.scheduler';
 
 const ownerUrl = process.env.MIGRATION_DATABASE_URL!;
 let app: NestExpressApplication;
@@ -693,7 +699,7 @@ describe('anuncios, políticas y firma', () => {
     const file = await luis.get(`/api/signatures/${id}/file?signed=true`).buffer(true).expect(200);
     expect((await PDFDocument.load(file.body)).getPageCount()).toBe(3);
     const ev = (await adminAgent.get(`/api/signatures/${id}/evidence`).expect(200)).body;
-    expect(ev.evidence).toMatchObject({ method: 'session+email_otp', signer: { name: 'Luis Empleado', nationalId: '00000000T' } });
+    expect(ev.evidence).toMatchObject({ method: 'session+email_otp', provider: 'simple', level: 'simple', signer: { name: 'Luis Empleado', nationalId: '00000000T' } });
     const docs = (await luis.get('/api/documents/mine')).body;
     expect(docs.some((d: any) => d.category === 'signed' && d.title === 'Anexo de teletrabajo (firmado)')).toBe(true);
     await marta.get(`/api/signatures/${id}/file`).expect(403);
@@ -1422,5 +1428,166 @@ describe('consultas a RR. HH.', () => {
     await luis.post(`/api/tickets/${ticketId}/messages`).field('body', 'otra').expect(400);
     const notes = await owner.query(`SELECT n.type FROM notification n JOIN app_user u ON u.id = n.user_id WHERE u.email = 'luis@demo.test' AND n.type LIKE 'ticket.%'`);
     expect(notes.rows.map((r) => r.type)).toEqual(expect.arrayContaining(['ticket.reply', 'ticket.status']));
+  });
+});
+
+describe('cierre de la V1: límites compartidos, sellos automáticos, antivirus y sesiones', () => {
+  /** TSA de mentira: devuelve «concedido» con un token que repite la huella y el nonce pedidos. */
+  function fakeTsa(status = 0) {
+    const tlv = (tag: number, content: Buffer) => Buffer.concat([Buffer.from([tag, content.length]), content]);
+    return createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c) => chunks.push(c));
+      req.on('end', () => {
+        const body = Buffer.concat(chunks);
+        const at = body.indexOf(Buffer.from([0x04, 0x20]));
+        const digest = body.subarray(at + 2, at + 34);
+        const nonce = body.subarray(at + 36, at + 44);
+        const token = tlv(0x30, Buffer.concat([tlv(0x04, digest), tlv(0x02, nonce)]));
+        const reply = tlv(0x30, Buffer.concat([tlv(0x30, Buffer.from([0x02, 0x01, status])), status > 1 ? Buffer.alloc(0) : token]));
+        res.writeHead(200, { 'Content-Type': 'application/timestamp-reply' }).end(reply);
+      });
+    });
+  }
+
+  /** clamd de mentira: marca como infectado todo lo que contenga «EICAR». */
+  function fakeClamd() {
+    return createTcpServer((socket) => {
+      let data = Buffer.alloc(0);
+      socket.on('data', (d) => {
+        data = Buffer.concat([data, d]);
+        if (data.subarray(-4).equals(Buffer.alloc(4))) socket.end(data.includes('EICAR') ? 'stream: Eicar-Signature FOUND\0' : 'stream: OK\0');
+      });
+    });
+  }
+
+  const listen = (s: HttpServer | TcpServer) =>
+    new Promise<number>((resolve) => s.listen(0, '127.0.0.1', () => resolve((s.address() as AddressInfo).port)));
+
+  it('los intentos se cuentan en la base de datos, no en cada proceso', async () => {
+    const db = app.get(Db);
+    const replicaA = new RateLimiter(db, 'prueba', 3, 60_000);
+    const replicaB = new RateLimiter(db, 'prueba', 3, 60_000);
+    await replicaA.check('clave');
+    await replicaB.check('clave');
+    await replicaA.check('clave');
+    await expect(replicaB.check('clave')).rejects.toMatchObject({ status: 429 });
+    await replicaB.reset('clave');
+    await replicaA.check('clave');
+
+    for (let i = 0; i < 10; i++) await request(server).post('/api/auth/login').send({ email: 'nadie@demo.test', password: 'mala-mala-mala' }).expect(401);
+    await request(server).post('/api/auth/login').send({ email: 'nadie@demo.test', password: 'mala-mala-mala' }).expect(429);
+    // Solo se guardan huellas, y el rol de la aplicación no puede leer ni tocar la tabla.
+    const keys = await owner.query('SELECT DISTINCT key FROM rate_limit_hit');
+    expect(keys.rows.length).toBeGreaterThan(0);
+    expect(keys.rows.every((r) => /^[0-9a-f]{64}$/.test(r.key))).toBe(true);
+    await expect(db.raw('SELECT * FROM rate_limit_hit')).rejects.toMatchObject({ code: '42501' });
+    await owner.query(`UPDATE rate_limit_hit SET hit_at = now() - interval '2 days'`);
+    await db.raw('SELECT rate_limit_cleanup()');
+    expect((await owner.query('SELECT count(*)::int AS n FROM rate_limit_hit')).rows[0].n).toBe(0);
+  });
+
+  it('cerrar sesión en todos los dispositivos invalida todas las sesiones de la cuenta', async () => {
+    const other = request.agent(server);
+    await other.post('/api/auth/login').send({ email: 'marta@demo.test', password: 'una-contraseña-larga' }).expect(200);
+    await request(server).post('/api/auth/logout-all').expect(401);
+    await marta.post('/api/auth/logout-all').expect(200);
+    await marta.get('/api/auth/me').expect(401);
+    await other.get('/api/auth/me').expect(401);
+    await luis.get('/api/auth/me').expect(200);
+    await marta.post('/api/auth/login').send({ email: 'marta@demo.test', password: 'una-contraseña-larga' }).expect(200);
+    const a = await owner.query(`SELECT 1 FROM audit_event WHERE action = 'auth.sessions_revoked'`);
+    expect(a.rowCount).toBe(1);
+  });
+
+  it('el sellado automático sella una vez el mes anterior de cada sociedad con fichajes', async () => {
+    const scheduler = app.get(SealScheduler);
+    const now = new Date('2026-12-01T03:00:00Z');
+    expect(previousPeriod(now)).toBe('2026-11');
+    expect(previousPeriod(new Date('2027-01-15T00:00:00Z'))).toBe('2026-12');
+    const created = await scheduler.runDue(now);
+    expect(created).toBeGreaterThanOrEqual(1);
+    expect(await scheduler.runDue(now)).toBe(0);
+    const seals = (await adminAgent.get(`/api/time/seals?companyId=${companyId}`).expect(200)).body;
+    expect(seals[0]).toMatchObject({ automatic: true, period: '2026-11', timestamped: false });
+    expect(seals.filter((s: any) => s.automatic)).toHaveLength(1);
+    const mail = await owner.query(`SELECT payload FROM outbox WHERE type = 'email' AND payload->>'text' LIKE 'Sello automático del mes 2026-11%'`);
+    expect(mail.rows.map((r) => r.payload.to)).toContain('ana@demo.test');
+    // El mes siguiente vuelve a sellar.
+    expect(await scheduler.runDue(new Date('2027-01-02T00:00:00Z'))).toBe(created);
+    await adminAgent.get(`/api/time/seals/${seals[0].id}/timestamp`).expect(404);
+  });
+
+  it('con una TSA configurada el sello lleva sello de tiempo RFC 3161 descargable', async () => {
+    const tsa = fakeTsa();
+    const rejecting = fakeTsa(2);
+    try {
+      config.tsa.url = `http://127.0.0.1:${await listen(tsa)}/tsr`;
+      const seal = (await adminAgent.post('/api/time/seal').send({ companyId }).expect(201)).body;
+      expect(seal.timestamped).toBe(true);
+      const tsr = await adminAgent
+        .get(`/api/time/seals/${seal.id}/timestamp`)
+        .buffer(true)
+        .parse((res, cb) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => cb(null, Buffer.concat(chunks)));
+        })
+        .expect(200);
+      expect(tsr.headers['content-type']).toBe('application/timestamp-reply');
+      expect((tsr.body as Buffer).includes(Buffer.from(seal.digest, 'hex'))).toBe(true);
+      await luis.get(`/api/time/seals/${seal.id}/timestamp`).expect(403);
+      // Si la TSA rechaza o no responde, se sella igualmente, sin sello de tiempo.
+      config.tsa.url = `http://127.0.0.1:${await listen(rejecting)}/tsr`;
+      expect((await adminAgent.post('/api/time/seal').send({ companyId }).expect(201)).body.timestamped).toBe(false);
+      config.tsa.url = 'http://127.0.0.1:1/tsr';
+      expect((await adminAgent.post('/api/time/seal').send({ companyId }).expect(201)).body.timestamped).toBe(false);
+    } finally {
+      config.tsa.url = '';
+      tsa.close();
+      rejecting.close();
+    }
+  });
+
+  it('con antivirus, un fichero infectado no se guarda y sin antivirus disponible se rechaza la subida', async () => {
+    const clamd = fakeClamd();
+    const cats = (await luis.get('/api/tickets/categories').expect(200)).body;
+    const open = (file: string) =>
+      luis.post('/api/tickets').field('categoryId', cats[0].id).field('subject', 'Adjunto').field('body', 'Va un fichero.').attach('file', Buffer.from(file), { filename: 'a.txt', contentType: 'text/plain' });
+    const files = async () => (await owner.query('SELECT count(*)::int AS n FROM stored_file')).rows[0].n;
+    try {
+      config.clamav.host = '127.0.0.1';
+      config.clamav.port = await listen(clamd);
+      const before = await files();
+      await open('contenido normal').expect(201);
+      expect(await files()).toBe(before + 1);
+      const infected = await open('X5O!P%@AP EICAR-STANDARD-ANTIVIRUS-TEST-FILE').expect(422);
+      expect(infected.body.message).toMatch(/antivirus/);
+      expect(await files()).toBe(before + 1);
+      config.clamav.port = 1;
+      await open('contenido normal').expect(503);
+      expect(await files()).toBe(before + 1);
+    } finally {
+      config.clamav.host = '';
+      clamd.close();
+    }
+  });
+
+  it('la conservación purga también el registro de auditoría, nunca antes de un año', async () => {
+    await adminAgent.put('/api/privacy/retention').send({ audit: 100 }).expect(400);
+    await owner.query(`INSERT INTO audit_event (tenant_id, action, entity, created_at) VALUES ($1, 'prueba.antigua', 'x', now() - interval '6 years')`, [tenantId]);
+    const run = (await adminAgent.post('/api/privacy/retention/run').send({ dryRun: false }).expect(201)).body;
+    expect(run.result.audit).toBe(1);
+    expect((await owner.query(`SELECT count(*)::int AS n FROM audit_event WHERE action = 'prueba.antigua'`)).rows[0].n).toBe(0);
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`SELECT set_config('app.tenant_id', $1, true)`, [tenantId]);
+      await expect(client.query(`SELECT retention_purge_audit($1, now() - interval '1 month')`, [tenantId])).rejects.toThrow(/1 año/);
+      await client.query('ROLLBACK');
+    } finally {
+      await client.end();
+    }
   });
 });

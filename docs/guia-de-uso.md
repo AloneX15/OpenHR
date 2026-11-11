@@ -30,6 +30,8 @@
 
 **Tareas.** En **Tareas** ves lo que te toca de las altas, bajas y traspasos en curso (por ejemplo, leer el manual de acogida). Márcalas al terminarlas.
 
+**Mi cuenta.** Cambia la contraseña, activa la verificación en dos pasos y, si has perdido un dispositivo o entraste desde un ordenador ajeno, **cierra la sesión en todos los dispositivos**.
+
 **Privacidad.** En **Privacidad** puedes descargar todos tus datos y pedir que se corrijan o borren; la empresa tiene un mes para responder.
 
 **Canal de denuncias.** Si la empresa lo ha activado, tiene un enlace propio (pídelo a RR. HH.). Puedes comunicar irregularidades de forma anónima y seguirlas con el código que te damos.
@@ -69,7 +71,7 @@
 - **Consultas a RR. HH. → Bandeja**: las consultas pendientes de tus sociedades, primero las de prioridad alta. Al responder te la asignas; puedes pasarla a otra persona de RR. HH., escribir notas internas y marcarla como resuelta.
 - **Encuestas → Gestionar**: crea una encuesta (la plantilla trae eNPS y preguntas de clima), elige si es anónima y para qué sociedad, y *Lanzar*. En *Resultados* ves la participación, el eNPS, las medias y los comentarios.
 - **Informes → Registro retributivo**: medias y medianas por sexo y grupo, con las brechas de al menos el 25 % marcadas; se descarga en CSV.
-- **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro (recomendado al cerrar cada mes).
+- **Informes**: registro de jornada (para la Inspección y la representación legal), variables de nómina del mes (para la gestoría) y **sellos** del registro: el del mes anterior se crea solo al empezar cada mes y te llega por email (consérvalo); también puedes sellar cuando quieras. Si la instalación tiene sellado de tiempo, cada sello se puede descargar para verificarlo.
 
 ## Administración
 

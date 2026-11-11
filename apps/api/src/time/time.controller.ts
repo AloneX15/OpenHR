@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { z } from 'zod';
-import { assertHr, loadActor } from '../common/access';
+import { loadActor } from '../common/access';
 import { CurrentUser, parse, SessionUser, zDate, zUuid } from '../common/http';
 import { Db } from '../db/db.service';
 import { TimeService } from './time.service';
@@ -100,9 +101,18 @@ export class TimeController {
   @Get('seals')
   seals(@CurrentUser() u: SessionUser, @Query('companyId') companyId: string) {
     const id = parse(zUuid, companyId);
-    return this.db.tx(u.tenantId, u.userId, async (tx) => {
-      assertHr(await loadActor(tx), id);
-      return tx.query('SELECT id, sealed_at, digest, sent_to FROM time_chain_seal WHERE company_id = $1 ORDER BY sealed_at DESC LIMIT 50', [id]);
-    });
+    return this.db.tx(u.tenantId, u.userId, async (tx) => this.time.seals(tx, await loadActor(tx), id));
+  }
+
+  /** Sello de tiempo RFC 3161 del sello, tal como lo devolvió la TSA. */
+  @Get('seals/:id/timestamp')
+  async sealTimestamp(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const { digest, data } = await this.db.tx(u.tenantId, u.userId, async (tx) => this.time.sealTimestamp(tx, await loadActor(tx), id));
+    res.setHeader('Content-Type', 'application/timestamp-reply');
+    res.setHeader('Content-Length', data.length);
+    res.setHeader('Content-Disposition', `attachment; filename="sello-${digest.slice(0, 16)}.tsr"`);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.end(data);
   }
 }

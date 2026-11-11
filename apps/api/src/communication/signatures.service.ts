@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Actor, assertHr, audit, canHr, hrCompanyFilter } from '../common/access';
@@ -6,6 +6,7 @@ import { safeEqual, sha256 } from '../common/crypto';
 import { Tx } from '../db/db.service';
 import { StorageService } from '../documents/storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { SIGNATURE_PROVIDER, type SignatureProvider } from './signature-provider';
 
 const OTP_MINUTES = 10;
 const OTP_MAX_ATTEMPTS = 5;
@@ -61,6 +62,7 @@ export class SignaturesService {
   constructor(
     private readonly storage: StorageService,
     private readonly notifications: NotificationsService,
+    @Inject(SIGNATURE_PROVIDER) private readonly provider: SignatureProvider,
   ) {}
 
   private columns = `s.id, s.company_id, c.name AS company_name, s.person_id, p.first_name || ' ' || p.last_name AS person_name, s.title, s.message,
@@ -180,8 +182,8 @@ export class SignaturesService {
       method: 'session+email_otp',
       consent: CONSENT_TEXT,
     };
-    const signedPdf = await stampSignaturePage(data, evidence);
-    const signedFile = await this.storage.store(tx, signedPdf, file.filename.replace(/\.pdf$/i, '') + '-firmado.pdf', 'application/pdf');
+    const { pdf: signedPdf, providerEvidence } = await this.provider.sign(data, evidence);
+    const signedFile = await this.storage.store(tx, signedPdf, file.filename.replace(/\.pdf$/i, '') + '-firmado.pdf', 'application/pdf', { generated: true });
     const doc = await tx.one(
       `INSERT INTO document (tenant_id, person_id, company_id, file_id, category, title, created_by) VALUES ($1,$2,$3,$4,'signed',$5,$6) RETURNING id`,
       [tx.tenantId, s.person_id, s.company_id, signedFile.id, `${s.title} (firmado)`, actor.userId],
@@ -189,7 +191,7 @@ export class SignaturesService {
     await tx.query(
       `UPDATE signature_request SET status = 'signed', signed_at = $2, signed_file_id = $3, document_id = $4, evidence = $5,
               otp_hash = NULL, otp_expires_at = NULL WHERE id = $1`,
-      [id, evidence.signedAt, signedFile.id, doc.id, JSON.stringify({ ...evidence, signedFileSha256: signedFile.sha256 })],
+      [id, evidence.signedAt, signedFile.id, doc.id, JSON.stringify({ ...evidence, provider: this.provider.id, level: this.provider.level, providerEvidence, signedFileSha256: signedFile.sha256 })],
     );
     await this.notifications.notifyUsers(tx, [s.requested_by], {
       type: 'signature.signed',
@@ -197,7 +199,7 @@ export class SignaturesService {
       link: '/firmas',
       email: false,
     });
-    await audit(tx, 'signature.signed', 'signature_request', id, { original: file.sha256, signed: signedFile.sha256 });
+    await audit(tx, 'signature.signed', 'signature_request', id, { original: file.sha256, signed: signedFile.sha256, provider: this.provider.id });
     return { ok: true as const, documentId: doc.id as string, sha256: signedFile.sha256 };
   }
 

@@ -55,6 +55,10 @@ Abre `PUBLIC_URL` (por defecto <http://localhost:3000>), completa la **configura
 | `STORAGE_DIR` | No | Carpeta para `local` |
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE` | Con `s3` | Amazon S3 o compatible (MinIO, R2…). Sin claves se usa la cadena de credenciales estándar |
 | `AZURE_STORAGE_CONTAINER`, `AZURE_STORAGE_CONNECTION_STRING` o `AZURE_STORAGE_ACCOUNT` | Con `azure` | Con `AZURE_STORAGE_ACCOUNT` se usa la identidad gestionada (`AZURE_CLIENT_ID`) |
+| `TSA_URL` | No | Autoridad de sellado de tiempo RFC 3161 para los sellos del registro de jornada (por ejemplo `https://freetsa.org/tsr`, o la de tu prestador cualificado) |
+| `SIGNATURE_PROVIDER` | No (`simple`) | Adaptador de firma electrónica. Solo existe `simple` (código por email y hoja de evidencias); un valor desconocido impide arrancar la API |
+| `CLAMAV_HOST`, `CLAMAV_PORT` | No (puerto 3310) | Antivirus ClamAV (`clamd`) para analizar los ficheros subidos. Con `docker compose --profile antivirus up -d` se arranca uno y basta `CLAMAV_HOST=clamav` |
+| `OUTBOX_WORKER` | No (`true`) | `false` desactiva en esa réplica el envío de emails, la conservación diaria y el sellado automático |
 | `WEB_PORT`, `DB_PORT` | No (3000, 5433) | Puertos publicados en el host |
 
 ## Producción
@@ -74,7 +78,8 @@ Abre `PUBLIC_URL` (por defecto <http://localhost:3000>), completa la **configura
    docker run --rm -v openhr_storage:/data -v "$PWD":/backup alpine tar czf /backup/storage-$(date +%F).tgz -C /data .
    ```
    Guarda también `.env` (sobre todo `ENCRYPTION_KEY`) en un lugar seguro.
-5. **Sellos**: al cerrar cada mes, sella el registro de jornada de cada sociedad desde **Informes**.
+5. **Sellos**: el registro de jornada de cada sociedad se sella solo al empezar cada mes y la huella llega por email a RR. HH.; conserva esos correos. Para una prueba de un tercero, define `TSA_URL`.
+6. **Antivirus** (recomendado si la plantilla sube documentos): `CLAMAV_HOST=clamav` en `.env` y `docker compose --profile antivirus up -d`. ClamAV necesita alrededor de 1,5 GB de memoria y tarda unos minutos en descargar las firmas la primera vez; hasta entonces las subidas se rechazan. Su `StreamMaxLength` (25 MB por defecto en algunas versiones) debe cubrir el tamaño máximo de subida de OpenHR, 50 MB.
 
 ## Actualizar
 

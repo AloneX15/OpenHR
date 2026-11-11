@@ -91,6 +91,14 @@ export class AuthController {
     return { ok: true };
   }
 
+  @Post('auth/logout-all')
+  @HttpCode(200)
+  async logoutAll(@CurrentUser() user: SessionUser, @Res({ passthrough: true }) res: Response) {
+    await this.auth.revokeSessions(user);
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    return { ok: true };
+  }
+
   @Public()
   @Post('auth/forgot')
   @HttpCode(200)

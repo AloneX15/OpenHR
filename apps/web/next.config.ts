@@ -2,11 +2,12 @@ import type { NextConfig } from 'next';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Política de seguridad de contenidos. Next.js necesita 'unsafe-inline' para sus scripts de
-// hidratación y para el script del tema; en desarrollo también 'unsafe-eval'.
+// Política de seguridad de contenidos de lo que no es una página (respuestas de la API,
+// estáticos): sin scripts en línea. Las páginas reciben la suya, con un nonce por petición,
+// en src/proxy.ts, que sustituye a esta.
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
+  `script-src 'self'${isProd ? '' : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",

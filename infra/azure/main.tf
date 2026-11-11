@@ -437,6 +437,18 @@ resource "azurerm_container_app" "api" {
         value = var.vapid_subject
       }
       env {
+        name  = "TSA_URL"
+        value = var.tsa_url
+      }
+      env {
+        name  = "CLAMAV_HOST"
+        value = var.clamav_host
+      }
+      env {
+        name  = "CLAMAV_PORT"
+        value = tostring(var.clamav_port)
+      }
+      env {
         name  = "TZ"
         value = "UTC"
       }

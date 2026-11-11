@@ -52,6 +52,8 @@ terraform output -raw encryption_key            # guárdala fuera de Azure
 
 Abre la URL y completa la configuración inicial con el token.
 
+Opcionales en `terraform.tfvars`: `tsa_url` (sello de tiempo RFC 3161 de los sellos del registro de jornada) y `clamav_host` / `clamav_port` (antivirus para los ficheros subidos; este módulo no despliega ClamAV, debe ser un `clamd` accesible desde la API). La API puede escalar a varias réplicas sin más ajustes: los límites de intentos se cuentan en PostgreSQL.
+
 ## Dominio propio
 
 Añade el dominio a la Container App `web` (`az containerapp hostname add` y `bind`, con certificado gestionado gratuito), pon `public_url = "https://rrhh.ejemplo.com"` en `terraform.tfvars` y vuelve a aplicar: la API solo acepta peticiones de ese origen.

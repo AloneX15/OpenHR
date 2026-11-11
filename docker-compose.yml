@@ -67,6 +67,10 @@ services:
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      TSA_URL: ${TSA_URL:-}
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      SIGNATURE_PROVIDER: ${SIGNATURE_PROVIDER:-simple}
       TZ: UTC
     volumes:
       - storage:/data/storage
@@ -96,6 +100,16 @@ services:
     ports:
       - "127.0.0.1:${MAIL_UI_PORT:-8025}:8025"
 
+  # Antivirus opcional para los ficheros subidos. Solo arranca con el perfil:
+  #   docker compose --profile antivirus up -d      (y CLAMAV_HOST=clamav en .env)
+  clamav:
+    image: clamav/clamav:stable
+    profiles: ["antivirus"]
+    restart: unless-stopped
+    volumes:
+      - clamav-db:/var/lib/clamav
+
 volumes:
   db-data:
   storage:
+  clamav-db:

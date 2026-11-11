@@ -31,6 +31,7 @@ En la tabla: **P** = pública, **S** = cualquier sesión, **E** = la propia pers
 | `POST /auth/login` | P | `{ email, password }` → cookie, o `{ mfaRequired, challenge }` |
 | `POST /auth/mfa` | P | `{ challenge, code }` → cookie |
 | `POST /auth/logout` | P | Borra la cookie |
+| `POST /auth/logout-all` | S | Cierra todas las sesiones de la cuenta, también esta |
 | `POST /auth/forgot` | P | `{ email }`. Siempre responde `ok` (no revela si existe) |
 | `POST /auth/set-password` | P | `{ token, password }` para invitación o recuperación; un solo uso |
 | `POST /auth/oidc/lookup` | P | `{ email }` → `{ sso, label?, enforce? }` |
@@ -136,8 +137,9 @@ Eventos: `announcement` (cada anuncio), `absence` (ausencia aprobada: nombre, ti
 | `GET /time/employments/:id?from=&to=` | E / R / H | Fichajes y resumen diario (trabajado, pausas, teórico, festivo, ausencia, incidencias). Máximo un año |
 | `GET /time/employments/:id/verify` | E / R / H | Verifica la cadena de hashes |
 | `GET /time/team` | R / H | Quién está trabajando ahora |
-| `POST /time/seal` | H | `{ companyId }`: sella y envía la huella por email |
-| `GET /time/seals?companyId=` | H | Sellos anteriores |
+| `POST /time/seal` | H | `{ companyId }`: sella y envía la huella por email → `{ id, digest, timestamped, … }`. Con `TSA_URL`, pide además un sello de tiempo RFC 3161 |
+| `GET /time/seals?companyId=` | H | Sellos anteriores, con `automatic`, `period`, `timestamped` y `tsa_url`. El del mes anterior se crea solo al empezar cada mes |
+| `GET /time/seals/:id/timestamp` | H | Descarga la respuesta de la TSA (`.tsr`); 404 si el sello no tiene sello de tiempo |
 
 ## Turnos y bolsa de horas
 
@@ -285,7 +287,7 @@ Cálculo: personas con relación laboral en algún momento del año, con la retr
 | `GET /privacy/requests` | H / A | Solicitudes (RR. HH., de personas de sus sociedades) |
 | `POST /privacy/requests/:id` | H / A | `{ status, response?, extendDays? }` |
 | `GET /privacy/retention`, `PUT /privacy/retention` | S / A | Plazos de conservación en días |
-| `POST /privacy/retention/run` | A | `{ dryRun }`: cuenta o aplica (fichajes, notificaciones, emails enviados, anonimización de antiguas personas) |
+| `POST /privacy/retention/run` | A | `{ dryRun }`: cuenta o aplica (fichajes, notificaciones, emails enviados, registro de auditoría, anonimización de antiguas personas) |
 | `POST /privacy/anonymize/:personId` | A | Anonimiza ya a una persona sin relación vigente |
 
 ## Canal de denuncias

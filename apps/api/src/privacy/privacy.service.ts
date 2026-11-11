@@ -16,7 +16,7 @@ export const DEFAULT_RETENTION: Record<RetentionCategory, number> = {
   notifications: 365,
   outbox: 30,
 };
-export const MIN_RETENTION: Partial<Record<RetentionCategory, number>> = { time_entries: 4 * 365 + 1, former_employees: 4 * 365 + 1 };
+export const MIN_RETENTION: Partial<Record<RetentionCategory, number>> = { time_entries: 4 * 365 + 1, former_employees: 4 * 365 + 1, audit: 365 };
 
 export const KIND_LABEL: Record<string, string> = {
   access: 'Acceso',
@@ -49,14 +49,15 @@ export class PrivacyService implements OnApplicationBootstrap, OnApplicationShut
   }
 
   private async runAllTenants() {
-    const tenants = await this.db.raw<{ retention_tenant_ids: string }>('SELECT retention_tenant_ids()');
+    const tenants = await this.db.raw<{ id: string }>('SELECT system_tenant_ids() AS id');
     for (const t of tenants) {
       try {
-        await this.db.tx(t.retention_tenant_ids, null, (tx) => this.run(tx, false));
+        await this.db.tx(t.id, null, (tx) => this.run(tx, false));
       } catch (err) {
-        this.log.error(`Tenant ${t.retention_tenant_ids}: ${(err as Error).message}`);
+        this.log.error(`Tenant ${t.id}: ${(err as Error).message}`);
       }
     }
+    await this.db.raw('SELECT rate_limit_cleanup()').catch((err) => this.log.error(`Límites de intentos: ${(err as Error).message}`));
   }
 
   // ── Mis datos (acceso y portabilidad, arts. 15 y 20) ────────────────────────────────
@@ -202,12 +203,13 @@ export class PrivacyService implements OnApplicationBootstrap, OnApplicationShut
     if (result.timeEntries) await tx.query('SELECT retention_purge_time_entries($1, $2)', [tx.tenantId, cut(s.time_entries)]);
     await tx.query('DELETE FROM notification WHERE created_at < $1', [cut(s.notifications)]);
     await tx.query('DELETE FROM outbox WHERE processed_at IS NOT NULL AND processed_at < $1', [cut(s.outbox)]);
-    // audit_event es append-only para la app: su purga se hará con una función dedicada (pendiente).
+    // audit_event es append-only para la app: solo se purga con su función dedicada.
+    if (result.audit) await tx.query('SELECT retention_purge_audit($1, $2)', [tx.tenantId, cut(s.audit)]);
     const former = await tx.query<{ id: string }>(`SELECT p.id ${formerSql}`, [formerCut]);
     for (const { id } of former) await this.anonymize(tx, id);
     await tx.query(`INSERT INTO retention_run (tenant_id, triggered_by, result) VALUES ($1,$2,$3)`, [tx.tenantId, triggeredBy, JSON.stringify(result)]);
     await audit(tx, 'retention.run', 'tenant', tx.tenantId, result);
-    return { dryRun: false, settings: s, result: { ...result, audit: 0 } };
+    return { dryRun: false, settings: s, result };
   }
 
   /** Anonimiza a una persona que ya no trabaja en el grupo y borra sus documentos. */

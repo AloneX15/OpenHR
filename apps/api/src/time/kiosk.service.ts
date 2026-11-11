@@ -17,12 +17,14 @@ const QR_SECONDS = 60;
  */
 @Injectable()
 export class KioskService {
-  private readonly attempts = new RateLimiter(5, 15 * 60 * 1000);
+  private readonly attempts: RateLimiter;
 
   constructor(
     private readonly db: Db,
     private readonly time: TimeService,
-  ) {}
+  ) {
+    this.attempts = new RateLimiter(db, 'kiosk', 5, 15 * 60 * 1000);
+  }
 
   // ── Dispositivos (RR. HH.) ──────────────────────────────────────────────────────────
   devices(tx: Tx, actor: Actor) {
@@ -131,10 +133,10 @@ export class KioskService {
         employmentId = p.eid;
       } else {
         const key = `${d.device_id}:${input.code}`;
-        this.attempts.check(key);
+        await this.attempts.check(key);
         const e = await tx.maybeOne('SELECT id, kiosk_pin_hash FROM employment WHERE kiosk_code = $1', [input.code ?? '']);
         if (!e?.kiosk_pin_hash || !(await bcrypt.compare(input.pin ?? '', e.kiosk_pin_hash))) throw new UnauthorizedException('Código o PIN incorrectos');
-        this.attempts.reset(key);
+        await this.attempts.reset(key);
         employmentId = e.id;
       }
       const emp = await tx.maybeOne(

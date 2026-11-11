@@ -38,12 +38,14 @@ const codeHash = (code: string) => sha256(`wb:${normalizeCode(code)}`);
  */
 @Injectable()
 export class WhistleblowingService {
-  private readonly limiter = new RateLimiter(20, 15 * 60 * 1000);
+  private readonly limiter: RateLimiter;
 
   constructor(
     private readonly db: Db,
     private readonly notifications: NotificationsService,
-  ) {}
+  ) {
+    this.limiter = new RateLimiter(db, 'wb', 20, 15 * 60 * 1000);
+  }
 
   private assertHandler(actor: Actor) {
     if (!actor.isCompliance) throw new ForbiddenException('Solo la persona Responsable del Sistema interno de información accede a las denuncias');
@@ -72,7 +74,7 @@ export class WhistleblowingService {
 
   // ── Acceso público (sin sesión) ─────────────────────────────────────────────────────
   private async tenantFor(token: string, ip: string) {
-    this.limiter.check(`wb:${ip}`);
+    await this.limiter.check(ip);
     const [t] = await this.db.raw<{ tenant_id: string; tenant_name: string }>('SELECT * FROM wb_tenant_by_token($1)', [token]);
     if (!t) throw new NotFoundException('Canal no encontrado');
     return t;

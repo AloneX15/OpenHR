@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { FormEvent, useEffect, useState } from 'react';
 import { KioskCredentials } from '@/components/Kiosk';
@@ -19,12 +20,37 @@ export default function AccountPage() {
         <MfaCard enabled={me.mfaEnabled} onChange={reload} />
         <PushSettings />
         {me.employments.length > 0 && <KioskCredentials />}
+        <SessionsCard />
         <Card title="Apariencia">
           <p className="muted">Elige el tema de color. «Sistema» sigue la configuración de tu dispositivo.</p>
           <ThemeSwitch />
         </Card>
       </div>
     </>
+  );
+}
+
+function SessionsCard() {
+  const router = useRouter();
+  const { busy, error, run } = useAction();
+  const closeAll = () => {
+    if (!confirm('Se cerrará la sesión en todos tus dispositivos, también en este. ¿Continuar?')) return;
+    void run(async () => {
+      await api.post('/auth/logout-all');
+      router.replace('/login');
+    });
+  };
+  return (
+    <Card title="Sesiones">
+      <ErrorBox error={error} />
+      <p className="muted">
+        Si has perdido un dispositivo o has entrado desde un ordenador que no es tuyo, cierra la sesión en todos a la vez. Tendrás que volver a
+        entrar en cada uno.
+      </p>
+      <button className="btn btn-danger" disabled={busy} onClick={closeAll}>
+        Cerrar sesión en todos los dispositivos
+      </button>
+    </Card>
   );
 }
 

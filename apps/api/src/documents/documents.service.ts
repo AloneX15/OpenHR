@@ -228,7 +228,7 @@ export class DocumentsService {
     const title = `Nómina de ${periodLabel(b.period)} · ${company.name}`;
     for (const [personId, nums] of byPerson) {
       const pdf = await extractPages(data, nums);
-      const stored = await this.storage.store(tx, pdf, `nomina-${b.period}.pdf`, 'application/pdf');
+      const stored = await this.storage.store(tx, pdf, `nomina-${b.period}.pdf`, 'application/pdf', { generated: true });
       await tx.query(
         `INSERT INTO document (tenant_id, person_id, company_id, file_id, category, title, period, batch_id, created_by)
          VALUES ($1,$2,$3,$4,'payslip',$5,$6,$7,$8)`,

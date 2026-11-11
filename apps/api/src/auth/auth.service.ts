@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
 import { decrypt, encrypt, newTotpSecret, sha256, verifyTotp } from '../common/crypto';
-import { loadActor } from '../common/access';
+import { audit, loadActor } from '../common/access';
 import { SessionUser } from '../common/http';
 import { config } from '../config';
 import { Db, Tx } from '../db/db.service';
@@ -20,28 +20,32 @@ export type LoginResult = { user: SessionUser } | { mfaRequired: true; challenge
 
 @Injectable()
 export class AuthService {
-  private readonly loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
+  private readonly loginLimiter: RateLimiter;
   // Límite por cuenta, independiente de la IP (que puede falsearse tras un proxy).
-  private readonly accountLimiter = new RateLimiter(20, 15 * 60 * 1000);
-  private readonly mfaLimiter = new RateLimiter(10, 15 * 60 * 1000);
+  private readonly accountLimiter: RateLimiter;
+  private readonly mfaLimiter: RateLimiter;
 
   constructor(
     private readonly db: Db,
     private readonly notifications: NotificationsService,
-  ) {}
+  ) {
+    this.loginLimiter = new RateLimiter(db, 'login', 10, 15 * 60 * 1000);
+    this.accountLimiter = new RateLimiter(db, 'account', 20, 15 * 60 * 1000);
+    this.mfaLimiter = new RateLimiter(db, 'mfa', 10, 15 * 60 * 1000);
+  }
 
   async login(rawEmail: string, password: string, ip: string): Promise<LoginResult> {
     const email = rawEmail.trim().toLowerCase();
     const key = `${ip}:${email}`;
-    this.loginLimiter.check(key);
-    this.accountLimiter.check(email);
+    await this.loginLimiter.check(key);
+    await this.accountLimiter.check(email);
     const [row] = await this.db.raw('SELECT * FROM auth_find_user($1)', [email]);
     const ok = await bcrypt.compare(password, row?.password_hash ?? DUMMY_HASH);
     if (!row || !row.password_hash || !ok || !row.is_active) {
       throw new UnauthorizedException('Email o contraseña incorrectos');
     }
-    this.loginLimiter.reset(key);
-    this.accountLimiter.reset(email);
+    await this.loginLimiter.reset(key);
+    await this.accountLimiter.reset(email);
     const user = { userId: row.user_id, tenantId: row.tenant_id };
     if (row.totp_enabled) return { mfaRequired: true, challenge: signMfaChallenge(user) };
     await this.touchLogin(user);
@@ -51,14 +55,14 @@ export class AuthService {
   async completeMfa(challenge: string, code: string): Promise<SessionUser> {
     const user = verifyMfaChallenge(challenge);
     if (!user) throw new UnauthorizedException('El reto ha caducado, vuelve a iniciar sesión');
-    this.mfaLimiter.check(user.userId);
+    await this.mfaLimiter.check(user.userId);
     const row = await this.db.tx(user.tenantId, user.userId, (tx) =>
       tx.one('SELECT totp_secret, totp_enabled, is_active FROM app_user WHERE id = $1', [user.userId]),
     );
     if (!row.is_active || !row.totp_enabled || !verifyTotp(decrypt(row.totp_secret), code)) {
       throw new UnauthorizedException('Código incorrecto');
     }
-    this.mfaLimiter.reset(user.userId);
+    await this.mfaLimiter.reset(user.userId);
     await this.touchLogin(user);
     return user;
   }
@@ -125,6 +129,14 @@ export class AuthService {
     });
   }
 
+  /** Cierra todas las sesiones de la cuenta, también esta (ver ADR 0003). */
+  async revokeSessions(user: SessionUser) {
+    await this.db.tx(user.tenantId, user.userId, async (tx) => {
+      await tx.query('UPDATE app_user SET session_version = session_version + 1 WHERE id = $1', [user.userId]);
+      await audit(tx, 'auth.sessions_revoked', 'app_user', user.userId);
+    });
+  }
+
   async changePassword(user: SessionUser, current: string, next: string) {
     assertPasswordPolicy(next);
     await this.db.tx(user.tenantId, user.userId, async (tx) => {
@@ -154,8 +166,8 @@ export class AuthService {
 
   /** Siempre responde igual para no revelar qué emails existen. */
   async requestPasswordReset(email: string, ip: string) {
-    this.loginLimiter.check(`reset:${ip}`);
-    this.accountLimiter.check(`reset:${email.toLowerCase()}`);
+    await this.loginLimiter.check(`reset:${ip}`);
+    await this.accountLimiter.check(`reset:${email.toLowerCase()}`);
     const [row] = await this.db.raw('SELECT * FROM auth_find_user($1)', [email]);
     if (!row || !row.is_active) return;
     await this.db.tx(row.tenant_id, null, async (tx) => {

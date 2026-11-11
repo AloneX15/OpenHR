@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { config } from '../config';
 import { sha256 } from '../common/crypto';
 import { Tx } from '../db/db.service';
+import { scanBuffer } from './antivirus';
 import { createStorageAdapter, StorageAdapter } from './storage-adapters';
 
 export interface StoredFile {
@@ -18,8 +19,14 @@ export interface StoredFile {
 export class StorageService {
   /** Disco local, S3 (o compatible) o Azure Blob según STORAGE_DRIVER. */
   private readonly adapter: StorageAdapter = createStorageAdapter(config.storage);
+  private readonly log = new Logger('Ficheros');
 
-  async store(tx: Tx, data: Buffer, filename: string, contentType: string): Promise<StoredFile> {
+  /**
+   * Guarda un fichero. Si hay antivirus configurado (CLAMAV_HOST) se analiza antes; los que
+   * genera el propio servidor a partir de otros ya analizados pasan `generated: true`.
+   */
+  async store(tx: Tx, data: Buffer, filename: string, contentType: string, opts: { generated?: boolean } = {}): Promise<StoredFile> {
+    if (!opts.generated) await this.assertClean(data, filename);
     const now = new Date();
     const key = `${tx.tenantId}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${randomUUID()}`;
     await this.adapter.put(key, data, contentType);
@@ -28,6 +35,22 @@ export class StorageService {
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, filename, content_type, size_bytes, sha256, storage_key`,
       [tx.tenantId, key, filename, contentType, data.length, sha256(data), tx.userId],
     );
+  }
+
+  /** Rechaza el fichero si el antivirus lo marca (422) o no se ha podido analizar (503). */
+  private async assertClean(data: Buffer, filename: string) {
+    if (!config.clamav.host) return;
+    let result;
+    try {
+      result = await scanBuffer(data, config.clamav);
+    } catch (err) {
+      this.log.error(`Antivirus: ${(err as Error).message}`);
+      throw new ServiceUnavailableException('No se ha podido analizar el fichero con el antivirus. Inténtalo de nuevo en unos minutos.');
+    }
+    if (!result.clean) {
+      this.log.warn(`Fichero rechazado por el antivirus (${result.signature}): ${filename}`);
+      throw new UnprocessableEntityException('El antivirus ha detectado software malicioso en el fichero y no se ha guardado.');
+    }
   }
 
   /** Borra el fichero y su fila (la fila no debe estar referenciada). */

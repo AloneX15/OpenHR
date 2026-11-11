@@ -18,7 +18,9 @@ El registro de jornada (art. 34.9 ET) debe ser fiable y conservarse cuatro años
 
 Como el hash encadena el *digest* y no el contenido, se pueden anonimizar los datos personales de un evento (por ejemplo, el motivo) sin romper los enlaces de la cadena; solo deja de poder comprobarse el contenido de ese evento. Para purgar periodos completos se guardará un punto de control con el último hash del periodo purgado, de forma que la verificación empiece en él. La purga la hace `retention_purge_time_entries()`: guarda en `time_chain_checkpoint` el último eslabón purgado de cada relación laboral, borra los anteriores (el trigger solo lo permite dentro de esa función) y la verificación empieza en el punto de control.
 
-## Pendiente
+## Sellado automático y sello de tiempo (migración 022)
 
-- Sellado automático mensual y, opcionalmente, sellado de tiempo RFC 3161.
-- Fichaje sin conexión (hora declarada frente a hora recibida).
+- Al empezar cada mes, la API sella el mes anterior de cada sociedad con fichajes (`SealScheduler`). Un índice único por sociedad y mes evita sellos automáticos duplicados aunque haya varias réplicas.
+- El email demuestra el sello mientras alguien conserve el correo, y lo envía el propio sistema. Con `TSA_URL`, la huella lleva además un sello de tiempo RFC 3161: lo firma un tercero y se verifica sin confiar en OpenHR. La respuesta de la TSA se guarda tal cual en `time_chain_seal.tsa_response`.
+- Si la TSA falla, se sella sin sello de tiempo: es mejor un sello por email que ninguno.
+- El fichaje sin conexión (hora declarada frente a hora recibida) llegó en la migración 015.

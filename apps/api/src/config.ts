@@ -50,6 +50,18 @@ export const config = {
   setupToken: process.env.SETUP_TOKEN ?? '',
   sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   outboxWorker: process.env.OUTBOX_WORKER !== 'false',
+  // Autoridad de sellado de tiempo RFC 3161 para los sellos del registro de jornada
+  // (por ejemplo https://freetsa.org/tsr). Vacío: los sellos solo se envían por email.
+  tsa: { url: process.env.TSA_URL ?? '' },
+  // Adaptador de firma (communication/signature-provider.ts). Hoy solo existe «simple».
+  signatureProvider: process.env.SIGNATURE_PROVIDER || 'simple',
+  // Antivirus opcional (clamd por TCP). Con CLAMAV_HOST, todo fichero subido se analiza
+  // antes de guardarse; si el antivirus no responde, la subida se rechaza.
+  clamav: {
+    host: process.env.CLAMAV_HOST ?? '',
+    port: Number(process.env.CLAMAV_PORT ?? 3310),
+    timeoutMs: Number(process.env.CLAMAV_TIMEOUT_MS ?? 60_000),
+  },
   // Avisos push (Web Push). Sin claves VAPID, los avisos solo llegan a la bandeja y por email.
   // Genera las claves con: npx web-push generate-vapid-keys
   push: {

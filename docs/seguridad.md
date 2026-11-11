@@ -23,17 +23,17 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 
 ### Autenticación y sesiones
 - Contraseñas con **bcrypt (coste 12)**, mínimo 10 caracteres. Hash ficticio para igualar tiempos si el email no existe.
-- **Límite de intentos**: 10 por IP y email y 20 por cuenta cada 15 minutos; MFA, 10 intentos por usuario. La web no reenvía a la API las cabeceras `X-Forwarded-For`, `X-Real-IP` ni `Forwarded` del cliente, para que no se pueda falsear la IP.
+- **Límite de intentos**: 10 por IP y email y 20 por cuenta cada 15 minutos; MFA, 10 intentos por usuario. Se cuentan en PostgreSQL (`rate_limit_try`), así que el límite es el mismo con una réplica de la API o con varias; de cada clave solo se guarda una huella SHA-256, sin emails ni IPs. La web no reenvía a la API las cabeceras `X-Forwarded-For`, `X-Real-IP` ni `Forwarded` del cliente, para que no se pueda falsear la IP.
 - **MFA TOTP** (RFC 6238) con el secreto cifrado con AES-256-GCM. Desactivarlo exige la contraseña.
 - **JWT HS256** con algoritmo fijado, en cookie `HttpOnly`, `SameSite=Lax` y `Secure` cuando `PUBLIC_URL` es HTTPS.
-- **Sesiones revocables**: cada JWT lleva la versión de sesión de la cuenta; cambiar la contraseña o el email, activar o desactivar MFA o desactivar la cuenta la incrementa y cierra todas las sesiones al instante ([ADR 0003](adr/0003-sesiones.md)).
+- **Sesiones revocables**: cada JWT lleva la versión de sesión de la cuenta; cambiar la contraseña o el email, activar o desactivar MFA o desactivar la cuenta la incrementa y cierra todas las sesiones al instante ([ADR 0003](adr/0003-sesiones.md)). Desde **Mi cuenta** cualquiera puede cerrar su sesión en todos los dispositivos.
 - **Enlaces de contraseña de un solo uso**: llevan una huella del hash actual y caducan (24 h recuperación, 7 días invitación). La recuperación responde igual exista o no el email.
 - **Cuenta corporativa (OpenID Connect)**: Microsoft Entra ID, Google Workspace u otro proveedor, con código de autorización y PKCE, `state` y `nonce` en cookie firmada, y validación completa del ID token. Solo enlaza cuentas existentes del mismo email y dominio permitido; puede hacerse obligatoria para esos dominios. El secreto del cliente se guarda cifrado.
 - **Configuración inicial protegible** con `SETUP_TOKEN`, para que nadie reclame una instalación recién expuesta.
 
 ### Web y HTTP
 - **CSRF**: cookie `SameSite=Lax` y, en toda petición que modifica datos y trae cabecera `Origin` (los navegadores la envían siempre en peticiones entre sitios), comprobación de que coincide con `PUBLIC_URL`. Las peticiones sin `Origin` no vienen de un navegador de otro sitio y no pueden aprovechar la cookie de la víctima.
-- **Cabeceras**: `Content-Security-Policy` (sin orígenes externos, `object-src 'none'`, `frame-ancestors 'self'`), `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+- **Cabeceras**: `Content-Security-Policy` (sin orígenes externos, `object-src 'none'`, `frame-ancestors 'self'`) con un **nonce por petición** y `'strict-dynamic'` en `script-src`: no hay `'unsafe-inline'` para scripts, así que un script inyectado no se ejecuta (`apps/web/src/proxy.ts`). Además, `X-Frame-Options`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
 - **Descargas** como `attachment`, `no-store` y `nosniff`. Los CSV neutralizan fórmulas (`=`, `+`, `-`, `@`).
 - **Errores** sin trazas ni detalles de PostgreSQL (que podrían revelar, por ejemplo, que un email existe en otra organización).
 - **Entradas** validadas con zod; los campos desconocidos se descartan (sin asignación masiva).
@@ -41,6 +41,8 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 ### Integridad del registro de jornada
 - Fichajes **append-only** (permisos y triggers), correcciones como eventos con motivo y autor.
 - **Cadena de hashes** por relación laboral y **sellos** enviados por email fuera del sistema ([ADR 0002](adr/0002-time-entry-hash-chain.md)).
+- **Sellado automático**: al empezar cada mes se sella el mes anterior de cada sociedad con fichajes, sin depender de que alguien se acuerde.
+- **Sello de tiempo RFC 3161** (opcional, `TSA_URL`): una autoridad de sellado de tiempo firma la huella del sello. Es una prueba de un tercero, que no depende de quien administra OpenHR ni del correo. La respuesta se descarga desde **Informes** (`.tsr`) y se verifica fuera, por ejemplo con `openssl ts -verify -digest <huella> -in sello.tsr -CAfile cadena-de-la-tsa.pem`. OpenHR comprueba que la TSA concedió el sello para esa huella y ese nonce; la firma la valida quien audite. Si la TSA no responde, el sello se hace igualmente, sin sello de tiempo.
 
 ### Datos salariales
 - La retribución y el sexo solo los ve RR. HH. de la sociedad (el sexo, también la propia persona); el responsable no. La auditoría registra que hubo un cambio y quién lo hizo, sin los importes.
@@ -79,12 +81,12 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - Plazos legales (acuse en 7 días, respuesta en 3 meses) visibles y marcados al vencer.
 
 ### Conservación y derechos
-- Plazos por categoría aplicados cada día. El registro de jornada no se puede purgar antes de 4 años ni desde la propia base de datos.
+- Plazos por categoría aplicados cada día. El registro de jornada no se puede purgar antes de 4 años ni desde la propia base de datos; el registro de auditoría, nunca antes de 1 año y solo con su función dedicada.
 - Anonimización de quien dejó el grupo: datos identificativos, cuenta, campos personalizados, evidencias de firma y documentos.
 - Cada persona descarga sus datos en JSON y ejerce sus derechos con plazo de respuesta controlado.
 
 ### Firma electrónica
-- Es una **firma electrónica simple** (art. 3.10 del Reglamento eIDAS): tiene validez jurídica y su fuerza probatoria depende de las evidencias. Para contratos de alto riesgo puede convenir un proveedor de firma avanzada o cualificada (pendiente como adaptador).
+- Es una **firma electrónica simple** (art. 3.10 del Reglamento eIDAS): tiene validez jurídica y su fuerza probatoria depende de las evidencias. Para contratos de alto riesgo puede convenir un proveedor de firma avanzada o cualificada. OpenHR no integra ninguno, pero la firma del fichero pasa por un adaptador (`SignatureProvider`, en `apps/api/src/communication/signature-provider.ts`, elegido con `SIGNATURE_PROVIDER`) pensado para añadirlo; hoy solo existe `simple`. Las evidencias guardan el proveedor y el nivel de cada firma.
 - Doble factor: sesión autenticada y código de un solo uso enviado al email del firmante (guardado como hash, 10 minutos, 5 intentos; los fallos quedan registrados aunque la petición falle).
 - Al PDF se le añade una hoja con firmante, DNI/NIE, email, fecha, IP, método, declaración aceptada y SHA-256 del original; las evidencias y la huella del PDF firmado se guardan en la base de datos y en la auditoría.
 
@@ -93,6 +95,7 @@ OpenHR guarda datos personales, de salud (bajas) y salariales (nóminas), así q
 - SHA-256 de cada fichero, comprobado al leerlo.
 - Límites de tamaño: 50 MB (PDF y documentos) y 5 MB (CSV). Los PDF se validan por cabecera y se procesan sin evaluar código (`isEvalSupported: false`).
 - Nóminas: ninguna página se publica sin revisión humana.
+- **Antivirus opcional** (`CLAMAV_HOST`): cada fichero que sube una persona se analiza con ClamAV antes de guardarse. Si está infectado no se guarda (422); si el antivirus no responde, la subida se rechaza (503) en lugar de aceptarse sin analizar. Los ficheros que genera el propio servidor (PDF firmados, nóminas separadas) no se vuelven a analizar.
 
 ### Datos en reposo y secretos
 - Secretos solo en `.env` (fuera de Git); `.env.example` sin valores reales.
@@ -120,17 +123,23 @@ Revisión del código fuente siguiendo la metodología de la skill `security-aud
 | 10 | Dependencias con avisos (nodemailer, csv-parse, multer) | Alto/medio según el aviso | Actualizadas |
 | 11 | La web reenviaba el `X-Forwarded-For` del cliente a la API | Medio: eludir el límite por IP | La web elimina esas cabeceras (hallado en la revisión de código posterior) |
 | 12 | Al dar de alta por email se podía fusionar a dos personas con DNI distintos | Medio: datos de una persona visibles para otra | Solo se reutiliza la persona si el DNI no lo contradice |
-| 11 | La web reenviaba el `X-Forwarded-For` del cliente a la API | Medio: eludir el límite por IP | La web elimina esas cabeceras (hallado en la revisión de código posterior) |
-| 12 | Al dar de alta por email se podía fusionar a dos personas con DNI distintos | Medio: datos de una persona visibles para otra | Solo se reutiliza la persona si el DNI no lo contradice |
 
 Los tests de integración cubren los puntos 1, 3 y 4.
 
-## Pendiente (V1 comercial)
+## Cierre de la V1
 
-- `'unsafe-inline'` en `script-src`: sustituir por nonces de Next.js.
-- Sellado automático mensual y sellado de tiempo RFC 3161.
-- Límites de intentos compartidos (en base de datos o Redis) si se despliegan varias réplicas de la API.
-- Antivirus opcional para documentos subidos.
+Lo que la auditoría dejó pendiente está hecho (migración 022) y cubierto por tests:
+
+| Pendiente | Solución |
+| --- | --- |
+| `'unsafe-inline'` en `script-src` | Nonce por petición y `'strict-dynamic'` |
+| Sellado manual | Sellado automático mensual y sello de tiempo RFC 3161 opcional |
+| Límites de intentos en la memoria de cada proceso | Contados en PostgreSQL, compartidos entre réplicas |
+| Ficheros subidos sin analizar | Antivirus opcional con ClamAV |
+| Sin «cerrar sesión en todos los dispositivos» | Botón en **Mi cuenta** |
+| El registro de auditoría no se purgaba al vencer su plazo | Purga con función dedicada y mínimo de 1 año |
+
+Límite conocido: `style-src` conserva `'unsafe-inline'` porque React escribe atributos `style`; no permite ejecutar código.
 
 ## Cómo informar de una vulnerabilidad
 

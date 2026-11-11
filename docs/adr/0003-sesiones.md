@@ -15,4 +15,4 @@ La API emite un JWT en una cookie `HttpOnly`. Un JWT puro no se puede revocar: t
 ## Consecuencias
 
 - Una consulta ligera por petición (clave primaria). Asumible para el piloto y para la V1.
-- Cerrar sesión solo borra la cookie del navegador; «cerrar sesión en todos los dispositivos» basta con incrementar la versión (pendiente en la interfaz).
+- Cerrar sesión solo borra la cookie del navegador. «Cerrar sesión en todos los dispositivos» (`POST /auth/logout-all`, en **Mi cuenta**) incrementa la versión: se cierran todas las sesiones, también la que lo pide.

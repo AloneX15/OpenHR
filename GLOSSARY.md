@@ -77,8 +77,12 @@ Conjunto de fichajes vigentes por persona y día que exige el art. 34.9 del Esta
 _Avoid_: Control horario (como documento), parte de horas
 
 **Sello**:
-Huella del registro de jornada de una sociedad en un momento dado, enviada fuera del sistema para poder demostrar que no se ha alterado.
+Huella del registro de jornada de una sociedad en un momento dado, enviada fuera del sistema para poder demostrar que no se ha alterado. Es **automático** cuando lo crea el sistema al empezar el mes para cerrar el anterior.
 _Avoid_: Firma, checkpoint, backup
+
+**Sello de tiempo**:
+Prueba firmada por una autoridad de sellado de tiempo (RFC 3161) de que la huella de un **sello** existía en un instante. Se verifica sin confiar en OpenHR.
+_Avoid_: Timestamp (a secas), fecha del sello
 
 **Incidencia**:
 Anomalía en el registro de un día, como una salida que falta o un fichaje fuera de secuencia.

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import { ServiceWorker } from '@/components/ServiceWorker';
 import { THEME_INIT_SCRIPT } from '@/lib/theme';
 import './globals.css';
@@ -21,12 +22,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Nonce de la CSP de esta petición (lo genera src/proxy.ts). Leerlo hace que las páginas
+  // se rendericen en cada petición, que es lo que necesita un nonce.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
         {/* Aplica el tema guardado antes de pintar (evita el destello del tema equivocado). */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         {children}
